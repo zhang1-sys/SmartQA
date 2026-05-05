@@ -44,17 +44,18 @@ def run_workflow(
         result["latency_ms"] = int((time.monotonic() - started) * 1000)
         return result
 
+    inputs = {
+        "channel": channel,
+        "conversation_id": conversation_id,
+        "customer_message": message,
+        "conversation_history": json.dumps(conversation_history or [], ensure_ascii=False),
+        "customer_profile": json.dumps(customer_profile or {}, ensure_ascii=False),
+        "knowledge_context": knowledge_context or "",
+        "knowledge_sources": json.dumps(knowledge_sources or [], ensure_ascii=False),
+        "knowledge_hit": "true" if knowledge_sources else "false",
+    }
     payload = {
-        "inputs": {
-            "channel": channel,
-            "conversation_id": conversation_id,
-            "customer_message": message,
-            "conversation_history": json.dumps(conversation_history or [], ensure_ascii=False),
-            "customer_profile": json.dumps(customer_profile or {}, ensure_ascii=False),
-            "knowledge_context": knowledge_context or "",
-            "knowledge_sources": json.dumps(knowledge_sources or [], ensure_ascii=False),
-            "knowledge_hit": "true" if knowledge_sources else "false",
-        },
+        "inputs": inputs,
         "query": message,
         "user": DIFY_USER,
         "response_mode": "blocking",
@@ -62,33 +63,97 @@ def run_workflow(
     if dify_conversation_id:
         payload["conversation_id"] = dify_conversation_id
 
-    response = requests.post(
-        f"{DIFY_API_URL}/chat-messages",
-        headers=_headers(),
-        json=payload,
-        timeout=90,
-    )
-    response.raise_for_status()
-    data = response.json()
-    parsed = _parse_structured_answer(data.get("answer", ""))
+    try:
+        response = requests.post(
+            f"{DIFY_API_URL}/chat-messages",
+            headers=_headers(),
+            json=payload,
+            timeout=90,
+        )
+        response.raise_for_status()
+        data = response.json()
+        parsed = _parse_structured_answer(data.get("answer", ""))
+    except requests.HTTPError as exc:
+        if not _should_retry_as_workflow(exc.response):
+            raise
+        workflow_payload = {
+            "inputs": inputs,
+            "user": DIFY_USER,
+            "response_mode": "blocking",
+        }
+        response = requests.post(
+            f"{DIFY_API_URL}/workflows/run",
+            headers=_headers(),
+            json=workflow_payload,
+            timeout=90,
+        )
+        response.raise_for_status()
+        data = response.json()
+        parsed = _parse_workflow_response(data)
     if knowledge_sources:
-        knowledge = parsed.setdefault("knowledge", {"hit": True, "sources": [], "gap_question": None})
-        existing_sources = knowledge.get("sources") if isinstance(knowledge, dict) else []
-        if not isinstance(existing_sources, list):
-            existing_sources = []
-        known_titles = {str(source.get("title") or "") for source in existing_sources if isinstance(source, dict)}
-        merged_sources = existing_sources + [
-            source for source in knowledge_sources
-            if isinstance(source, dict) and str(source.get("title") or "") not in known_titles
-        ]
-        knowledge["hit"] = bool(merged_sources) or bool(knowledge.get("hit"))
-        knowledge["sources"] = merged_sources[:8]
-        knowledge.setdefault("gap_question", None)
-    parsed["dify_conversation_id"] = data.get("conversation_id")
-    parsed["dify_message_id"] = data.get("message_id")
+        _merge_knowledge_sources(parsed, knowledge_sources)
+    parsed["dify_conversation_id"] = data.get("conversation_id") or data.get("workflow_run_id")
+    parsed["dify_message_id"] = data.get("message_id") or data.get("task_id") or data.get("workflow_run_id")
     parsed["raw_dify_response"] = data
     parsed["latency_ms"] = int((time.monotonic() - started) * 1000)
     return _ensure_contract(parsed, message)
+
+
+def _should_retry_as_workflow(response) -> bool:
+    if response is None or response.status_code not in {400, 404, 405, 422}:
+        return False
+    text = response.text.lower()
+    app_type_markers = [
+        "not a chat app",
+        "completion app",
+        "workflow",
+        "not found",
+        "invalid endpoint",
+        "app mode",
+        "chat-messages",
+    ]
+    return any(marker in text for marker in app_type_markers)
+
+
+def _parse_workflow_response(data: dict[str, Any]) -> dict[str, Any]:
+    outputs = data.get("data", {}).get("outputs") or data.get("outputs") or {}
+    if not isinstance(outputs, dict):
+        outputs = {}
+    for key in ("structured_answer", "result", "answer_json", "json"):
+        value = outputs.get(key)
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str) and value.strip():
+            parsed = _parse_structured_answer(value)
+            if parsed:
+                return parsed
+    answer = outputs.get("answer") or outputs.get("text") or outputs.get("response") or ""
+    if isinstance(answer, dict):
+        return answer
+    parsed = _parse_structured_answer(str(answer))
+    if parsed:
+        return parsed
+    return {"answer": str(answer)}
+
+
+def _merge_knowledge_sources(parsed: dict[str, Any], knowledge_sources: list[dict[str, Any]]) -> None:
+    if not knowledge_sources:
+        return
+    knowledge = parsed.setdefault("knowledge", {"hit": True, "sources": [], "gap_question": None})
+    if not isinstance(knowledge, dict):
+        knowledge = {"hit": True, "sources": [], "gap_question": None}
+        parsed["knowledge"] = knowledge
+    existing_sources = knowledge.get("sources") if isinstance(knowledge, dict) else []
+    if not isinstance(existing_sources, list):
+        existing_sources = []
+    known_titles = {str(source.get("title") or "") for source in existing_sources if isinstance(source, dict)}
+    merged_sources = existing_sources + [
+        source for source in knowledge_sources
+        if isinstance(source, dict) and str(source.get("title") or "") not in known_titles
+    ]
+    knowledge["hit"] = bool(merged_sources) or bool(knowledge.get("hit"))
+    knowledge["sources"] = merged_sources[:8]
+    knowledge.setdefault("gap_question", None)
 
 
 def send_message(conversation_id, message, user="customer", stream=False):
