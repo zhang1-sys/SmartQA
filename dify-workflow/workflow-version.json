@@ -1,0 +1,47 @@
+{
+  "name": "SmartQA 建材企业客服多 Agent 工作流",
+  "current_version": "2026.05.05-enterprise-stable",
+  "status": "active",
+  "owner": "SmartQA",
+  "dify_app_url": "http://localhost:8080/app/13f90896-29a3-4c35-9c0d-b20e886c38d2/workflow",
+  "contract_file": "dify-workflow/FINAL_WORKFLOW_SPEC.md",
+  "versions": [
+    {
+      "version": "2026.05.05-enterprise-stable",
+      "date": "2026-05-05",
+      "summary": "固化最终多 Agent 节点编排、严格 JSON 输出契约、五维质检准则、知识库边界、验收用例和回滚流程；同步门店与联系人知识进入 Dataset。",
+      "required_outputs": [
+        "intent",
+        "knowledge",
+        "answer",
+        "qa",
+        "decision",
+        "knowledge_gap"
+      ],
+      "acceptance_cases": [
+        "产品报价",
+        "门店地址",
+        "销售电话",
+        "无电梯配送",
+        "货损投诉",
+        "未知价格",
+        "乱码或非文本"
+      ],
+      "rollback_note": "恢复上一版 Dify Workflow DSL，并保持 FINAL_WORKFLOW_SPEC.md 的最终 JSON 契约不变。"
+    },
+    {
+      "version": "2026.05.05-enterprise-loop",
+      "date": "2026-05-05",
+      "summary": "接入 Supabase 会话记忆、知识库检索、五维质检、自动发送/转人工决策和知识盲区闭环。",
+      "required_outputs": [
+        "intent",
+        "knowledge",
+        "answer",
+        "qa",
+        "decision",
+        "knowledge_gap"
+      ],
+      "rollback_note": "如 Dify 当前草稿异常，回滚到上一版导出的 DSL/YAML，并保持输出 JSON 契约不变。"
+    }
+  ]
+}

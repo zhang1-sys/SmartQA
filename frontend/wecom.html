@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 企业微信联调</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="top-navbar">
+    <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">S</div>
+        <span class="navbar-brand-gradient">SmartQA</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:14px;">
+        <a href="chat.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">客服对话</a>
+        <a href="dashboard.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">质检看板</a>
+        <a href="knowledge.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">知识库</a>
+        <a href="monitor.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">运行监控</a>
+        <a href="audit.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">审计日志</a>
+        <a href="wecom.html" class="nav-link-active" style="text-decoration:none;padding:16px 0;">企业微信</a>
+        <a href="#" onclick="logout();return false;" style="text-decoration:none;color:#94a3b8;padding:16px 0;border-bottom:2px solid transparent;">退出</a>
+      </div>
+    </div>
+  </nav>
+
+  <main style="max-width:1180px;margin:0 auto;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px;">
+      <div>
+        <h1 style="font-size:24px;font-weight:700;color:#1e293b;">企业微信真实联调</h1>
+        <p style="color:#64748b;font-size:14px;margin-top:6px;">用于确认回调、加密配置、主动发送能力，以及本地模拟消息是否能进入 AI 闭环。</p>
+      </div>
+      <button class="btn-secondary" onclick="loadStatus()">刷新状态</button>
+    </div>
+
+    <section style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:16px;margin-bottom:16px;">
+      <div class="card-shadow" style="background:#fff;padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:700;color:#1e293b;">联调配置</div>
+          <span id="wecom-enabled-badge" class="status-badge status-active">检测中</span>
+        </div>
+        <div style="display:grid;grid-template-columns:140px 1fr;gap:10px 14px;font-size:14px;">
+          <div style="color:#64748b;">回调 URL</div>
+          <div style="display:flex;gap:8px;align-items:center;min-width:0;">
+            <code id="callback-url" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">加载中...</code>
+            <button class="btn-secondary" onclick="copyCallbackUrl()" style="padding:7px 10px;">复制</button>
+          </div>
+          <div style="color:#64748b;">本地 URL</div>
+          <div><code id="local-callback-url" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">-</code></div>
+          <div style="color:#64748b;">公网隧道</div>
+          <div id="public-tunnel">-</div>
+          <div style="color:#64748b;">CorpID</div>
+          <div id="corp-id">-</div>
+          <div style="color:#64748b;">AgentID</div>
+          <div id="agent-id">-</div>
+          <div style="color:#64748b;">Secret</div>
+          <div id="secret">-</div>
+          <div style="color:#64748b;">Token</div>
+          <div id="token">-</div>
+          <div style="color:#64748b;">EncodingAESKey</div>
+          <div id="aes-key">-</div>
+          <div style="color:#64748b;">主动发送</div>
+          <div id="send-health">-</div>
+        </div>
+      </div>
+
+      <div class="card-shadow" style="background:#fff;padding:20px;">
+        <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;">待办检查</div>
+        <div id="missing-list" style="display:flex;flex-direction:column;gap:10px;color:#64748b;font-size:14px;">
+          加载中...
+        </div>
+      </div>
+    </section>
+
+    <section class="card-shadow" style="background:#fff;padding:20px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b;">本地模拟企业微信消息</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:3px;">这会调用同一套 WeCom Gateway，并写入 Supabase、触发 Dify、更新工作台。</div>
+        </div>
+        <button class="btn-brand" onclick="runSimulation()">发送模拟消息</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">模拟客户 ID</label>
+          <input id="sim-user" class="form-input" value="demo-wecom-customer">
+        </div>
+        <div class="form-group">
+          <label class="form-label">消息内容</label>
+          <input id="sim-content" class="form-input" value="100mm岩棉板多少钱？">
+        </div>
+      </div>
+      <div id="simulate-result" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;color:#64748b;font-size:13px;line-height:1.7;">
+        尚未发送模拟消息
+      </div>
+    </section>
+
+    <section class="card-shadow" style="background:#fff;padding:20px;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:14px;">真实联调就绪度</div>
+      <div id="readiness-list" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+        <div style="color:#94a3b8;font-size:13px;">加载中...</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="assets/app.js"></script>
+  <script>
+    let currentStatus = null;
+
+    document.addEventListener('DOMContentLoaded', boot);
+
+    async function boot() {
+      const ok = await ensureAuthenticated();
+      if (!ok) return;
+      loadStatus();
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = 'login.html';
+    }
+
+    async function loadStatus() {
+      try {
+        currentStatus = await fetchWeComStatus();
+        renderStatus(currentStatus);
+      } catch (e) {
+        showToast('企业微信状态加载失败', 'error');
+      }
+    }
+
+    function renderStatus(status) {
+      const badge = document.getElementById('wecom-enabled-badge');
+      badge.className = 'status-badge ' + (status.enabled ? 'status-resolved' : 'status-escalated');
+      badge.textContent = status.enabled ? '已配置' : '未配置';
+
+      document.getElementById('callback-url').textContent = status.callback_url || '-';
+      document.getElementById('local-callback-url').textContent = status.local_callback_url || '-';
+      document.getElementById('public-tunnel').innerHTML = status.public_base_configured
+        ? `<span class="status-badge status-resolved">已配置</span> <code style="color:#64748b;">${escapeHtml(status.public_callback_url)}</code>`
+        : '<span class="status-badge status-escalated">未配置</span> <span style="color:#94a3b8;">企业微信后台必须使用 HTTPS 公网 URL</span>';
+      document.getElementById('corp-id').textContent = status.configured.corp_id || '未配置';
+      document.getElementById('agent-id').textContent = status.configured.agent_id || '未配置';
+      document.getElementById('secret').textContent = status.configured.secret || '未配置';
+      document.getElementById('token').textContent = status.configured.token || '未配置';
+      document.getElementById('aes-key').textContent = status.configured.encoding_aes_key || '未配置';
+      document.getElementById('send-health').innerHTML = status.health.ok
+        ? '<span class="status-badge status-resolved">可用</span>'
+        : `<span class="status-badge status-escalated">不可用</span> <span style="color:#94a3b8;">${escapeHtml(status.health.reason || '')}</span>`;
+      renderReadiness(status.readiness || {});
+
+      const missing = status.missing_env || [];
+      const items = [];
+      if (missing.length) {
+        items.push(`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;color:#991b1b;">缺少环境变量：${missing.join('、')}</div>`);
+      } else {
+        items.push('<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;color:#166534;">环境变量已齐全</div>');
+      }
+      items.push(`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">企业微信后台填写 URL：<br><code>${escapeHtml(status.setup.url)}</code></div>`);
+      if (!status.public_base_configured) {
+        items.push('<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;color:#92400e;">当前只有本地 URL。真实企业微信后台保存配置时，需要先用 Cloudflare Tunnel 或 ngrok 拿到 HTTPS 域名，并写入 <code>WECOM_PUBLIC_BASE_URL</code>。</div>');
+      }
+      document.getElementById('missing-list').innerHTML = items.join('');
+    }
+
+    function renderReadiness(readiness) {
+      const rows = [
+        ['环境变量完整', readiness.env_configured, 'CorpID、AgentID、Secret、Token、EncodingAESKey'],
+        ['公网 HTTPS', readiness.public_https_configured, '企业微信后台只能保存 HTTPS 回调 URL'],
+        ['回调加密', readiness.encryption_configured, 'URL 验证和消息回调支持 EncodingAESKey 解密'],
+        ['主动发送', readiness.send_api_configured, 'AI 自动回复和人工回复可调用企业微信发送接口'],
+        ['文本消息', readiness.text_message_supported, '当前生产支持文本消息，图片/语音后续扩展'],
+        ['回调路径', Boolean(readiness.callback_path), readiness.callback_path || '/wecom/callback']
+      ];
+      document.getElementById('readiness-list').innerHTML = rows.map(([label, ok, desc]) => `
+        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#f8fafc;">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+            <span style="font-size:13px;font-weight:700;color:#334155;">${escapeHtml(label)}</span>
+            <span class="status-badge ${ok ? 'status-resolved' : 'status-escalated'}">${ok ? '通过' : '未就绪'}</span>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.6;">${escapeHtml(desc)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function runSimulation() {
+      const content = document.getElementById('sim-content').value.trim();
+      const fromUser = document.getElementById('sim-user').value.trim();
+      if (!content || !fromUser) {
+        showToast('请填写模拟客户 ID 和消息内容', 'error');
+        return;
+      }
+      document.getElementById('simulate-result').textContent = '正在进入 WeCom Gateway、Dify 和 Supabase...';
+      const result = await simulateWeComMessage({ content, from_user: fromUser });
+      if (!result.ok) {
+        document.getElementById('simulate-result').innerHTML = `<span style="color:#dc2626;">模拟失败：${escapeHtml(result.callback_body || '未知错误')}</span>`;
+        return;
+      }
+      const conv = result.conversation || {};
+      document.getElementById('simulate-result').innerHTML = `
+        <div><strong>回调结果：</strong>${escapeHtml(result.callback_body)} (${result.callback_status})</div>
+        <div><strong>会话 ID：</strong>${escapeHtml(conv.id || '-')}</div>
+        <div><strong>客户：</strong>${escapeHtml(conv.customer_name || fromUser)} · <strong>状态：</strong>${escapeHtml(conv.status || '-')}</div>
+        <div style="margin-top:8px;"><button class="btn-secondary" onclick="location.href='chat.html'">查看客服工作台</button></div>
+      `;
+      showToast('模拟消息已进入完整闭环', 'success');
+    }
+
+    function copyCallbackUrl() {
+      const text = document.getElementById('callback-url').textContent;
+      navigator.clipboard.writeText(text);
+      showToast('已复制回调 URL', 'success');
+    }
+
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function showToast(msg, type) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (type ? ' toast-' + type : '');
+      setTimeout(() => el.className = 'toast', 3200);
+    }
+  </script>
+</body>
+</html>
+

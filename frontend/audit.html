@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 审计日志</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="top-navbar">
+    <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">S</div>
+        <span class="navbar-brand-gradient">SmartQA</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:14px;">
+        <a href="chat.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">客服对话</a>
+        <a href="dashboard.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">质检看板</a>
+        <a href="knowledge.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">知识库</a>
+        <a href="monitor.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">运行监控</a>
+        <a href="audit.html" class="nav-link-active" style="text-decoration:none;padding:16px 0;">审计日志</a>
+        <a href="wecom.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">企业微信</a>
+        <a href="#" onclick="logout();return false;" style="text-decoration:none;color:#94a3b8;padding:16px 0;border-bottom:2px solid transparent;">退出</a>
+      </div>
+    </div>
+  </nav>
+
+  <main style="max-width:1400px;margin:0 auto;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px;">
+      <div>
+        <h1 style="font-size:24px;font-weight:800;color:#0f172a;">审计日志</h1>
+        <p style="color:#64748b;font-size:14px;margin-top:6px;">追踪人工接管、知识变更、同步重试、企业微信投递和客户注册等关键动作。</p>
+      </div>
+      <button class="btn-brand" onclick="loadAudit()">刷新</button>
+    </div>
+
+    <section class="card-shadow" style="background:#fff;border:1px solid #e2e8f0;padding:16px;margin-bottom:16px;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <select class="form-input" id="target-filter" style="width:180px;" onchange="loadAudit()">
+          <option value="">全部对象</option>
+          <option value="conversation">会话</option>
+          <option value="knowledge_item">知识条目</option>
+          <option value="knowledge_gap">知识盲区</option>
+          <option value="message">消息</option>
+        </select>
+        <input class="form-input" id="action-filter" style="width:260px;" placeholder="按 action 精确过滤，例如 knowledge_item.updated" onkeydown="if(event.key==='Enter')loadAudit()">
+        <button class="btn-secondary" onclick="clearFilters()">清空筛选</button>
+      </div>
+    </section>
+
+    <section class="card-shadow" style="background:#fff;border:1px solid #e2e8f0;overflow:hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:180px;">时间</th>
+            <th style="width:110px;">操作者</th>
+            <th style="width:230px;">动作</th>
+            <th style="width:170px;">对象</th>
+            <th>详情</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table">
+          <tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="assets/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', boot);
+
+    async function boot() {
+      const ok = await ensureAuthenticated();
+      if (!ok) return;
+      loadAudit();
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = 'login.html';
+    }
+
+    async function loadAudit() {
+      const rows = await fetchAuditLogs({
+        limit: 120,
+        target_type: document.getElementById('target-filter').value,
+        action: document.getElementById('action-filter').value.trim(),
+      });
+      const actionFilter = document.getElementById('action-filter').value.trim();
+      const targetFilter = document.getElementById('target-filter').value;
+      const displayRows = actionFilter || targetFilter
+        ? rows
+        : (rows || []).filter(row => row.action !== 'wecom_kf.sync_msg');
+      renderAudit(displayRows || []);
+    }
+
+    function renderAudit(rows) {
+      const body = document.getElementById('audit-table');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8;">暂无审计日志</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(row => `
+        <tr>
+          <td>${formatDateTime(row.created_at)}</td>
+          <td><span class="status-badge status-active">${escapeHtml(row.actor_type || '-')}</span></td>
+          <td style="font-weight:700;color:#1e293b;">${escapeHtml(row.action || '-')}</td>
+          <td>
+            <div>${escapeHtml(row.target_type || '-')}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${escapeHtml(shortId(row.target_id))}</div>
+          </td>
+          <td><pre class="audit-json">${escapeHtml(JSON.stringify(row.metadata || {}, null, 2))}</pre></td>
+        </tr>
+      `).join('');
+    }
+
+    function clearFilters() {
+      document.getElementById('target-filter').value = '';
+      document.getElementById('action-filter').value = '';
+      loadAudit();
+    }
+
+    function shortId(value) {
+      if (!value) return '';
+      const text = String(value);
+      return text.length > 18 ? text.slice(0, 8) + '...' + text.slice(-6) : text;
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value).slice(0, 19);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+app:
+  name: SmartQA 智能客服
+  mode: advanced-chat
+  icon: "\U0001F916"
+  icon_background: "#D1FAE5"
+  description: 保温建材行业AI智能客服，基于知识库自动回答客户咨询
+version: 0.1.5
+kind: app
+spec:
+  chat_config:
+    user_input_form:
+    - variable: query
+      label: 用户问题
+      humanized_name: query
+      type: text-input
+      required: true
+      max_length: 2000
+    file_upload:
+      image:
+        enabled: false
+    opening_statement: "您好！我是保温建材AI智能客服，请问有什么可以帮您？\n\n您可以咨询：\n- 产品价格与规格\n- 技术参数与选型\n- 物流运费\n- 售后政策"
+    suggested_questions:
+    - 岩棉板多少钱一平？
+    - XPS和EPS有什么区别？
+    - 能开发票吗？
+    model:
+      provider: langgenius/tongyi/tongyi
+      name: qwen-turbo
+      mode: chat
+      completion_params:
+        temperature: 0.7
+        top_p: 0.8
+    variables: []
+    sensitive_word_avoidance:
+      enabled: false
+  workflow:
+    graph:
+      nodes:
+      - id: "1741860000001"
+        type: start
+        data:
+          title: 开始
+          desc: 用户输入问题
+          type: start
+          variables:
+          - label: 用户问题
+            variable: query
+            type: text-input
+            max_length: 2000
+            required: true
+        position:
+          x: 80
+          y: 300
+
+      - id: "1741860000002"
+        type: knowledge-retrieval
+        data:
+          title: 知识库检索
+          desc: 从保温建材产品知识库中检索相关信息
+          type: knowledge-retrieval
+          dataset_ids:
+          - ef49f580-990b-4ad2-8c7a-2135b7718ea6
+          retrieval_mode: hybrid
+          top_k: 5
+          single_retrieval_config:
+            model:
+              provider: langgenius/tongyi/tongyi
+              name: text-embedding-v2
+              completion_params: {}
+          query_variable_selector:
+          - "1741860000001"
+          - query
+        position:
+          x: 380
+          y: 300
+
+      - id: "1741860000003"
+        type: llm
+        data:
+          title: AI客服回复
+          desc: 根据知识库内容生成专业客服回复
+          type: llm
+          model:
+            provider: langgenius/tongyi/tongyi
+            name: qwen-turbo
+            mode: chat
+            completion_params:
+              temperature: 0.7
+              top_p: 0.8
+          prompt_template:
+          - role: system
+            text: |
+              # 角色设定
+              你是一名专业的保温建材行业AI客服助手，服务于保温建材公司。
+
+              ## 核心职责
+              1. 准确回答客户关于保温建材产品的咨询，包括价格、规格、参数、物流、售后等
+              2. 引导客户留资（姓名、电话、项目信息），记录客户需求
+              3. 遇到复杂技术问题或投诉时，及时转人工服务
+
+              ## 回答规则
+              - 根据下方【知识库检索结果】中的产品信息回答
+              - 价格方面：优先报批发价，说明量大优惠条件
+              - 技术问题：给出具体参数（导热系数、容重、防火等级等）
+              - 物流问题：说明运费计算方式和大概时效
+              - 不确定的问题：诚实告知"这个问题我需要确认后回复您"，并建议转人工
+              - 永远不要编造不存在的产品或价格
+
+              ## 回答风格
+              - 简洁专业，每次回答控制在150字以内
+              - 使用口语化表达，不要太书面化
+              - 适当使用emoji让对话更亲切
+              - 结尾可以追问一句引导深入咨询
+
+              ## 知识库检索结果
+              {{#context#}}
+          - role: user
+            text: "{{#sys.query#}}"
+          memory:
+            window:
+              enabled: false
+            role_prefix:
+              user: ""
+              assistant: ""
+          context:
+            enabled: true
+            variable_selector:
+            - "1741860000002"
+            - result
+        position:
+          x: 680
+          y: 300
+
+      - id: "1741860000004"
+        type: direct-answer
+        data:
+          title: 直接回复
+          desc: 将AI生成的回复返回给用户
+          type: direct-answer
+          variables: []
+          answer:
+          - "1741860000003"
+            # text
+        position:
+          x: 980
+          y: 300
+
+      edges:
+      - id: "edge-start-to-knowledge"
+        source: "1741860000001"
+        target: "1741860000002"
+        sourceHandle: source
+        targetHandle: target
+      - id: "edge-knowledge-to-llm"
+        source: "1741860000002"
+        target: "1741860000003"
+        sourceHandle: source
+        targetHandle: target
+      - id: "edge-llm-to-reply"
+        source: "1741860000003"
+        target: "1741860000004"
+        sourceHandle: source
+        targetHandle: target

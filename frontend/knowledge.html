@@ -1,0 +1,797 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 知识库运营</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="top-navbar">
+    <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">S</div>
+        <span class="navbar-brand-gradient">SmartQA</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:14px;">
+        <a href="chat.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">客服对话</a>
+        <a href="dashboard.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">质检看板</a>
+        <a href="knowledge.html" class="nav-link-active" style="text-decoration:none;padding:16px 0;">知识库</a>
+        <a href="monitor.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">运行监控</a>
+        <a href="audit.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">审计日志</a>
+        <a href="wecom.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">企业微信</a>
+        <a href="#" onclick="logout();return false;" style="text-decoration:none;color:#94a3b8;padding:16px 0;border-bottom:2px solid transparent;">退出</a>
+      </div>
+    </div>
+  </nav>
+
+  <div style="display:flex;height:calc(100vh - 56px);max-width:1400px;margin:0 auto;overflow:hidden;">
+    <aside class="sidebar" style="width:240px;background:#fff;border-right:1px solid #e2e8f0;padding:16px 0;">
+      <div style="padding:0 16px 12px;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">知识分类</div>
+      <div class="category-item active" onclick="selectCategory(this,'all')">&#128230; 全部知识</div>
+      <div class="category-item" onclick="selectCategory(this,'保温材料','product')">&#129529; 保温材料</div>
+      <div class="category-item" onclick="selectCategory(this,'防水材料','product')">&#128167; 防水材料</div>
+      <div class="category-item" onclick="selectCategory(this,'粘接材料','product')">&#128279; 粘接材料</div>
+      <div class="category-item" onclick="selectCategory(this,'砂浆','product')">&#127959; 砂浆</div>
+      <div class="category-item" onclick="selectCategory(this,'修补材料','product')">&#128295; 修补材料</div>
+      <div style="border-top:1px solid #f1f5f9;margin:12px 0;"></div>
+      <div class="category-item" onclick="selectCategory(this,'售后政策','policy')">&#128203; 售后政策</div>
+      <div class="category-item" onclick="selectCategory(this,'物流规则','policy')">&#128666; 物流规则</div>
+      <div class="category-item" onclick="selectCategory(this,null,'store')">&#127970; 门店信息</div>
+      <div class="category-item" onclick="selectCategory(this,null,'contact')">&#128222; 联系方式</div>
+    </aside>
+
+    <main style="flex:1;display:grid;grid-template-rows:auto minmax(320px,1fr) auto minmax(190px,28vh);background:#f8fafc;min-width:0;min-height:0;">
+      <div style="padding:16px 24px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="position:relative;">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;">&#128269;</span>
+            <input class="search-input" placeholder="搜索名称、分类、品牌/联系人、规格/电话、参数" style="width:360px;padding-left:36px;" id="search-input" oninput="filterProducts()">
+          </div>
+          <select class="form-input" style="width:132px;" id="status-filter" onchange="filterProducts()">
+            <option value="">全部状态</option>
+            <option value="active">在售</option>
+            <option value="out_of_stock">缺货</option>
+            <option value="inactive">下架</option>
+          </select>
+          <select class="form-input" style="width:132px;" id="sync-filter" onchange="filterProducts()">
+            <option value="">同步状态</option>
+            <option value="synced">已同步</option>
+            <option value="pending">待同步</option>
+            <option value="syncing">同步中</option>
+            <option value="failed">失败</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" onclick="retryFailedSync()">重试失败同步</button>
+          <button class="btn-secondary" onclick="loadKnowledge()">刷新</button>
+          <button class="btn-secondary" onclick="openModal(null,'store')">+ 门店</button>
+          <button class="btn-secondary" onclick="openModal(null,'contact')">+ 联系人</button>
+          <button class="btn-brand" onclick="openModal(null,'product')">+ 产品</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto;padding:16px 24px;min-height:0;">
+        <div class="card-shadow" style="background:#fff;overflow:hidden;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="min-width:220px;">名称</th>
+                <th>类型/分类</th>
+                <th>品牌/联系人</th>
+                <th>规格/电话</th>
+                <th>单位/时间</th>
+                <th>面价</th>
+                <th>批发价</th>
+                <th>销售状态</th>
+                <th>同步状态</th>
+                <th style="width:188px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="knowledge-table">
+              <tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="padding:12px 24px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;color:#94a3b8;font-size:13px;" id="table-footer">
+        <span>加载中...</span>
+      </div>
+
+      <section style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;overflow:auto;min-height:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e293b;">知识盲区运营队列</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">来自 AI 回复链路的未覆盖问题，可沉淀为结构化知识并同步到 Dify。</div>
+          </div>
+          <button class="btn-secondary" onclick="loadKnowledgeGaps()">刷新盲区</button>
+        </div>
+        <div id="gap-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+          <div style="color:#94a3b8;font-size:13px;">加载中...</div>
+        </div>
+        <div style="margin-top:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#1e293b;">知识质量检查</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px;">检查缺少参数、适用场景、标准答案、Dify 同步状态等影响 AI 回答质量的问题。</div>
+            </div>
+            <button class="btn-secondary" onclick="loadKnowledgeQuality()">刷新质量</button>
+          </div>
+          <div id="quality-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;">
+            <div style="color:#94a3b8;font-size:13px;">加载中...</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="product-modal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span style="font-size:16px;font-weight:700;color:#1e293b;" id="modal-title">添加知识</span>
+        <span style="cursor:pointer;color:#94a3b8;font-size:20px;" onclick="closeModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-id">
+        <input type="hidden" id="form-item-type">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" id="label-product">名称 *</label>
+            <input class="form-input" id="form-product" placeholder="例如：高粘冷补料">
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="label-category">分类 *</label>
+            <select class="form-input" id="form-category">
+              <option value="保温材料">保温材料</option>
+              <option value="防水材料">防水材料</option>
+              <option value="粘接材料">粘接材料</option>
+              <option value="砂浆">砂浆</option>
+              <option value="修补材料">修补材料</option>
+              <option value="保温材料/防水材料">保温材料/防水材料</option>
+              <option value="常见问题">常见问题</option>
+              <option value="报价规则">报价规则</option>
+              <option value="物流规则">物流规则</option>
+              <option value="售后政策">售后政策</option>
+              <option value="门店">门店</option>
+              <option value="仓库">仓库</option>
+              <option value="销售咨询">销售咨询</option>
+              <option value="售后服务">售后服务</option>
+              <option value="技术支持">技术支持</option>
+              <option value="财务开票">财务开票</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" id="label-brand">品牌 *</label>
+            <input class="form-input" id="form-brand" placeholder="例如：北鹏">
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="label-spec">规格型号</label>
+            <input class="form-input" id="form-spec" placeholder="例如：25kg/袋">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" id="label-unit">单位</label>
+            <input class="form-input" id="form-unit" placeholder="例如：袋、桶、平方米">
+          </div>
+          <div class="form-group">
+            <label class="form-label">销售状态</label>
+            <select class="form-input" id="form-status">
+              <option value="active">在售</option>
+              <option value="out_of_stock">缺货</option>
+              <option value="inactive">下架</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">面价（元）</label>
+            <input class="form-input" id="form-price" type="number" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">批发价（元）</label>
+            <input class="form-input" id="form-wholesale" type="number" step="0.01" placeholder="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">核心参数</label>
+          <textarea class="form-input" id="form-params" rows="2" placeholder="例如：可雨后施工、开放交通时间、施工温度、导热系数、容重等"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">适用场景</label>
+          <input class="form-input" id="form-usage" placeholder="例如：市政道路坑槽快修、屋面保温、地下室防水">
+        </div>
+        <div class="form-group">
+          <label class="form-label">常见问题</label>
+          <input class="form-input" id="form-question" placeholder="客户常问的问题">
+        </div>
+        <div class="form-group">
+          <label class="form-label">标准答案</label>
+          <textarea class="form-input" id="form-answer" rows="2" placeholder="客服可直接引用的标准回答"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn-brand" onclick="saveProduct()" id="form-save-btn">保存并同步</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="gap-promote-modal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span style="font-size:16px;font-weight:700;color:#1e293b;">沉淀知识盲区</span>
+        <span style="cursor:pointer;color:#94a3b8;font-size:20px;" onclick="closeGapPromoteModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="gap-form-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">知识类型</label>
+            <select class="form-input" id="gap-form-type">
+              <option value="faq">FAQ</option>
+              <option value="policy">政策</option>
+              <option value="store">门店</option>
+              <option value="contact">联系方式</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">分类</label>
+            <input class="form-input" id="gap-form-category" placeholder="例如：售后政策、施工规则">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">标题</label>
+          <input class="form-input" id="gap-form-title" placeholder="知识条目标题">
+        </div>
+        <div class="form-group">
+          <label class="form-label">客户问题</label>
+          <textarea class="form-input" id="gap-form-question" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">标准答案 *</label>
+          <textarea class="form-input" id="gap-form-answer" rows="4" placeholder="补充可直接给客户使用的标准话术；涉及价格、承诺、政策时写清楚人工核实边界。"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">适用范围</label>
+          <input class="form-input" id="gap-form-usage" placeholder="例如：非标定制防火材料咨询">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeGapPromoteModal()">取消</button>
+        <button class="btn-brand" onclick="saveGapAsKnowledge()">创建知识并同步</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let allProducts = [];
+    let currentCategory = 'all';
+    let currentItemType = '';
+    let allGaps = [];
+
+    const ITEM_TYPE_META = {
+      product: { label: '产品', modalTitle: '产品', name: '产品名称 *', category: '品类 *', brand: '品牌 *', spec: '规格型号', unit: '单位' },
+      policy: { label: '政策', modalTitle: '政策', name: '政策名称 *', category: '政策分类 *', brand: '归属部门', spec: '适用范围', unit: '时效' },
+      faq: { label: 'FAQ', modalTitle: 'FAQ', name: 'FAQ 标题 *', category: '问题分类 *', brand: '归属部门', spec: '关键词', unit: '服务时间' },
+      store: { label: '门店', modalTitle: '门店/仓库', name: '门店/仓库名称 *', category: '类型 *', brand: '负责人/公司', spec: '区域/城市', unit: '联系电话' },
+      contact: { label: '联系人', modalTitle: '联系方式', name: '联系人/部门名称 *', category: '联系类型 *', brand: '联系人/部门', spec: '电话/微信/邮箱 *', unit: '服务时间' },
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      boot();
+    });
+
+    async function boot() {
+      const ok = await ensureAuthenticated();
+      if (!ok) return;
+      loadKnowledge();
+      loadKnowledgeGaps();
+      loadKnowledgeQuality();
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = 'login.html';
+    }
+
+    async function loadKnowledge() {
+      try {
+        const category = currentCategory === 'all' ? null : currentCategory;
+        allProducts = await fetchKnowledge(category, currentItemType || null);
+        filterProducts(false);
+      } catch (e) {
+        document.getElementById('knowledge-table').innerHTML =
+          '<tr><td colspan="10" style="text-align:center;padding:40px;color:#dc2626;">无法连接后端服务</td></tr>';
+        updateFooter(0);
+      }
+    }
+
+    function renderTable(items) {
+      const tbody = document.getElementById('knowledge-table');
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8;">暂无知识条目</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(item => {
+        const lifecycle = lifecycleMeta(item.status_code || item.lifecycle_status);
+        const sync = syncMeta(item.sync_status);
+        const safeItem = escapeAttr(JSON.stringify(item));
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:600;color:#1e293b;">${escapeHtml(item.product || item.title || '-')}</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:2px;">${escapeHtml(itemTypeLabel(item.item_type))}</div>
+            </td>
+            <td>${escapeHtml(item.category || '-')}</td>
+            <td>${escapeHtml(item.brand || '-')}</td>
+            <td>${escapeHtml(item.spec || '-')}</td>
+            <td>${escapeHtml(item.unit || '-')}</td>
+            <td style="color:#4f46e5;font-weight:600;">${formatMoney(item.price)}</td>
+            <td style="color:#16a34a;">${formatMoney(item.wholesale_price)}</td>
+            <td><span class="status-badge ${lifecycle.className}">${lifecycle.label}</span></td>
+            <td>
+              <span class="status-badge ${sync.className}">${sync.label}</span>
+              ${item.dify_document_id ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px;">Doc ${escapeHtml(String(item.dify_document_id).slice(0, 8))}</div>` : ''}
+              ${item.last_sync_error ? `<div style="font-size:11px;color:#dc2626;margin-top:4px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(item.last_sync_error)}">${escapeHtml(item.last_sync_error)}</div>` : ''}
+            </td>
+            <td>
+              <button class="btn-secondary" style="padding:5px 9px;font-size:12px;margin-right:6px;" onclick="openModal(JSON.parse('${safeItem}'))">编辑</button>
+              <button class="btn-secondary" style="padding:5px 9px;font-size:12px;margin-right:6px;color:#16a34a;" onclick="retrySync('${item.id}')">同步</button>
+              <button class="btn-secondary" style="padding:5px 9px;font-size:12px;" onclick="showKnowledgeDiagnostics('${item.id}')">诊断</button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    function updateFooter(count) {
+      const synced = allProducts.filter(i => i.sync_status === 'synced').length;
+      const pending = allProducts.filter(i => i.sync_status === 'pending' || i.sync_status === 'syncing').length;
+      const failed = allProducts.filter(i => i.sync_status === 'failed').length;
+      document.getElementById('table-footer').innerHTML =
+        `<span>当前筛选 ${count} 条，知识库总计 ${allProducts.length} 条</span>
+         <span>Dify 同步：<strong style="color:#16a34a;">${synced}</strong> 已同步 · <strong style="color:#a16207;">${pending}</strong> 待处理 · <strong style="color:#dc2626;">${failed}</strong> 失败</span>`;
+    }
+
+    function lifecycleMeta(status) {
+      const map = {
+        active: { label: '在售', className: 'status-resolved' },
+        out_of_stock: { label: '缺货', className: 'status-active' },
+        inactive: { label: '下架', className: 'status-escalated' },
+      };
+      return map[status] || { label: status || '未知', className: 'status-active' };
+    }
+
+    function syncMeta(status) {
+      const map = {
+        pending: { label: '待同步', className: 'status-active' },
+        syncing: { label: '同步中', className: 'status-active' },
+        synced: { label: '已同步', className: 'status-resolved' },
+        failed: { label: '同步失败', className: 'status-escalated' },
+      };
+      return map[status] || { label: status || '未同步', className: 'status-active' };
+    }
+
+    async function retrySync(id) {
+      showToast('正在同步到 Dify...', 'info');
+      const result = await syncKnowledge(id);
+      if (result.error || result.sync_status === 'failed') {
+        showToast(result.error || result.last_sync_error || 'Dify 同步失败', 'error');
+      } else {
+        showToast('已同步到 Dify 知识库', 'success');
+      }
+      await loadKnowledge();
+      await loadKnowledgeQuality();
+    }
+
+    async function retryFailedSync() {
+      showToast('正在重试失败同步任务...', 'info');
+      const result = await syncFailedKnowledge();
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+      const failed = (result.results || []).filter(item => item.sync_status === 'failed').length;
+      showToast(`已重试 ${result.attempted || 0} 条，失败 ${failed} 条`, failed ? 'error' : 'success');
+      await loadKnowledge();
+      await loadKnowledgeQuality();
+    }
+
+    async function showKnowledgeDiagnostics(id) {
+      const item = allProducts.find(i => String(i.id) === String(id));
+      const [jobs, versions] = await Promise.all([
+        fetchKnowledgeSyncJobs(id).catch(() => []),
+        fetchKnowledgeVersions(id).catch(() => []),
+      ]);
+      const latestJobs = jobs.slice(0, 5).map(job =>
+        `${formatDateTime(job.created_at)} · ${job.status} · ${job.error || '无错误'}`
+      ).join('\n') || '暂无同步任务';
+      const latestVersions = versions.slice(0, 5).map(v =>
+        `v${v.version_number} · ${formatDateTime(v.created_at)} · ${v.change_note || ''}`
+      ).join('\n') || '暂无版本记录';
+      alert([
+        `知识条目：${item ? (item.title || item.product || id) : id}`,
+        `同步状态：${item ? item.sync_status : '-'}`,
+        `Dify Document：${item && item.dify_document_id ? item.dify_document_id : '-'}`,
+        '',
+        '最近同步任务：',
+        latestJobs,
+        '',
+        '版本记录：',
+        latestVersions,
+      ].join('\n'));
+    }
+
+    async function loadKnowledgeGaps() {
+      const box = document.getElementById('gap-list');
+      try {
+        const gaps = await fetchKnowledgeGaps();
+        allGaps = gaps || [];
+        renderKnowledgeGaps(gaps);
+      } catch (e) {
+        box.innerHTML = '<div style="color:#dc2626;font-size:13px;">知识盲区加载失败</div>';
+      }
+    }
+
+    async function loadKnowledgeQuality() {
+      const box = document.getElementById('quality-list');
+      try {
+        const report = await fetchKnowledgeQuality();
+        const summary = report.summary || {};
+        const items = report.items || [];
+        if (!items.length) {
+          box.innerHTML = `<div class="empty-state">知识质量良好，平均分 ${summary.avg_score || 0}</div>`;
+          return;
+        }
+        box.innerHTML = items.slice(0, 8).map(item => `
+          <div class="monitor-row">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span class="status-badge ${item.score >= 80 ? 'status-resolved' : item.score >= 60 ? 'urgency-medium' : 'status-escalated'}">${item.score}</span>
+            </div>
+            <div class="monitor-detail">${escapeHtml(item.category || '-')} · ${escapeHtml(item.sync_status || '-')}</div>
+            <div class="monitor-detail">${item.issues.map(issue => escapeHtml(issue.message)).join('；')}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        box.innerHTML = '<div style="color:#dc2626;font-size:13px;">知识质量检查失败</div>';
+      }
+    }
+
+    function renderKnowledgeGaps(gaps) {
+      const box = document.getElementById('gap-list');
+      const openGaps = (gaps || []).filter(g => !['added_to_kb', 'ignored'].includes(g.status_code || g.status));
+      if (!openGaps.length) {
+        box.innerHTML = '<div style="color:#94a3b8;font-size:13px;">暂无待处理知识盲区</div>';
+        return;
+      }
+      const grouped = groupKnowledgeGaps(openGaps);
+      box.innerHTML = grouped.map(g => {
+        const status = g.status_code || g.status || 'open';
+        const priority = g.priority_code || g.priority || 'medium';
+        const priorityClass = priority === 'high' || priority === '紧急' ? 'urgency-high' : 'urgency-medium';
+        return `
+          <div class="card-shadow" style="background:#fff;padding:14px;border:1px solid #e2e8f0;">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+              <span class="status-badge ${priorityClass}">${priorityLabel(priority)}</span>
+              <span style="font-size:12px;color:#94a3b8;">${statusLabel(status)}${g.duplicate_count > 1 ? ` · 重复 ${g.duplicate_count}` : ''}</span>
+            </div>
+            <div style="font-weight:600;color:#1e293b;margin-top:10px;line-height:1.5;">${escapeHtml(g.question || '')}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.6;">${escapeHtml(g.suggested_answer || '等待运营补充标准答案')}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:8px;">${escapeHtml(g.category || '未分类')} · 频次 ${Number(g.frequency || 1)}</div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <button class="btn-secondary" onclick="setGapStatus('${g.id}','drafted')">转草稿</button>
+              <button class="btn-secondary" style="color:#16a34a;" onclick="openGapPromoteModal('${g.id}')">沉淀知识</button>
+              <button class="btn-secondary" onclick="setGapStatus('${g.id}','added_to_kb')">已补充</button>
+              <button class="btn-secondary" onclick="setGapStatus('${g.id}','ignored')">忽略</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function groupKnowledgeGaps(gaps) {
+      const priorityRank = { high: 3, urgent: 3, '紧急': 3, medium: 2, normal: 2, '中': 2, low: 1, '低': 1 };
+      const groups = new Map();
+      (gaps || []).forEach(gap => {
+        const key = normalizeGapQuestion(gap.question || '');
+        const current = groups.get(key);
+        if (!current) {
+          groups.set(key, { ...gap, duplicate_count: 1, related_ids: [gap.id], frequency: Number(gap.frequency || 1) });
+          return;
+        }
+        current.duplicate_count += 1;
+        current.related_ids.push(gap.id);
+        current.frequency = Number(current.frequency || 0) + Number(gap.frequency || 1);
+        const p = gap.priority_code || gap.priority || 'medium';
+        const cp = current.priority_code || current.priority || 'medium';
+        if ((priorityRank[p] || 0) > (priorityRank[cp] || 0)) {
+          current.priority = gap.priority;
+          current.priority_code = gap.priority_code;
+        }
+        if (String(gap.updated_at || '') > String(current.updated_at || '')) {
+          current.updated_at = gap.updated_at;
+        }
+      });
+      return Array.from(groups.values()).sort((a, b) => {
+        const ap = priorityRank[a.priority_code || a.priority] || 0;
+        const bp = priorityRank[b.priority_code || b.priority] || 0;
+        if (bp !== ap) return bp - ap;
+        if (Number(b.frequency || 0) !== Number(a.frequency || 0)) return Number(b.frequency || 0) - Number(a.frequency || 0);
+        return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+      });
+    }
+
+    function normalizeGapQuestion(question) {
+      return String(question || '')
+        .toLowerCase()
+        .replace(/[？?。！!，,、\s]/g, '')
+        .replace(/你们|咱们|这个|那个|一下|大概/g, '')
+        .slice(0, 80) || 'empty';
+    }
+
+    function openGapPromoteModal(id) {
+      const gap = allGaps.find(g => String(g.id) === String(id));
+      if (!gap) {
+        showToast('未找到知识盲区', 'error');
+        return;
+      }
+      const modal = document.getElementById('gap-promote-modal');
+      document.getElementById('gap-form-id').value = gap.id;
+      document.getElementById('gap-form-type').value = 'faq';
+      document.getElementById('gap-form-category').value = gap.category || '知识盲区';
+      document.getElementById('gap-form-title').value = (gap.question || '').slice(0, 48);
+      document.getElementById('gap-form-question').value = gap.question || '';
+      document.getElementById('gap-form-answer').value = gap.suggested_answer || '';
+      document.getElementById('gap-form-usage').value = '';
+      modal.style.display = 'flex';
+      requestAnimationFrame(() => modal.classList.add('show'));
+    }
+
+    function closeGapPromoteModal() {
+      const modal = document.getElementById('gap-promote-modal');
+      modal.classList.remove('show');
+      setTimeout(() => modal.style.display = 'none', 200);
+    }
+
+    async function saveGapAsKnowledge() {
+      const id = document.getElementById('gap-form-id').value;
+      const answer = document.getElementById('gap-form-answer').value.trim();
+      if (!answer) {
+        showToast('请先填写标准答案', 'error');
+        return;
+      }
+      showToast('正在创建知识并同步 Dify...', 'info');
+      const result = await promoteKnowledgeGap(id, {
+        item_type: document.getElementById('gap-form-type').value,
+        title: document.getElementById('gap-form-title').value.trim(),
+        category: document.getElementById('gap-form-category').value.trim(),
+        question: document.getElementById('gap-form-question').value.trim(),
+        answer,
+        usage_scenarios: document.getElementById('gap-form-usage').value.trim(),
+        sync: true,
+      });
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+      closeGapPromoteModal();
+      const item = result.knowledge_item || {};
+      if (item.sync_status === 'failed') {
+        showToast('已写入 Supabase，但 Dify 同步失败，可在知识列表重试', 'error');
+      } else {
+        showToast('知识已沉淀，并同步到 Dify', 'success');
+      }
+      await Promise.all([loadKnowledge(), loadKnowledgeGaps()]);
+      await loadKnowledgeQuality();
+    }
+
+    async function setGapStatus(id, status) {
+      const result = await updateKnowledgeGap(id, { status });
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+      showToast('知识盲区状态已更新', 'success');
+      loadKnowledgeGaps();
+      loadKnowledgeQuality();
+    }
+
+    function selectCategory(el, cat, itemType = '') {
+      document.querySelectorAll('.category-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+      currentCategory = cat;
+      currentItemType = itemType || '';
+      loadKnowledge();
+    }
+
+    function filterProducts(applyRender = true) {
+      const keyword = document.getElementById('search-input').value.trim().toLowerCase();
+      const statusFilter = document.getElementById('status-filter').value;
+      const syncFilter = document.getElementById('sync-filter').value;
+      let items = allProducts.slice();
+
+      if (keyword) {
+        items = items.filter(i =>
+          (i.product || i.title || '').toLowerCase().includes(keyword) ||
+          (i.brand || '').toLowerCase().includes(keyword) ||
+          (i.spec || '').toLowerCase().includes(keyword) ||
+          (i.category || '').toLowerCase().includes(keyword) ||
+          (i.answer || '').toLowerCase().includes(keyword) ||
+          (i.params || i.core_params || '').toLowerCase().includes(keyword)
+        );
+      }
+
+      if (statusFilter) {
+        items = items.filter(i => (i.status_code || i.lifecycle_status) === statusFilter);
+      }
+      if (syncFilter) {
+        items = items.filter(i => i.sync_status === syncFilter);
+      }
+
+      renderTable(items);
+      updateFooter(items.length);
+      return items;
+    }
+
+    function openModal(item, itemType = 'product') {
+      const modal = document.getElementById('product-modal');
+      modal.style.display = 'flex';
+      requestAnimationFrame(() => modal.classList.add('show'));
+
+      const values = item || {};
+      const type = values.item_type || itemType || 'product';
+      applyFormType(type);
+      document.getElementById('modal-title').textContent = item ? `编辑${itemTypeLabel(type)}` : `添加${itemTypeLabel(type)}`;
+      document.getElementById('form-save-btn').textContent = item ? '更新并同步' : '保存并同步';
+      document.getElementById('form-id').value = values.id || '';
+      document.getElementById('form-item-type').value = type;
+      document.getElementById('form-product').value = values.product || values.title || '';
+      document.getElementById('form-category').value = values.category || defaultCategory(type);
+      document.getElementById('form-brand').value = values.brand || '';
+      document.getElementById('form-spec').value = values.spec || '';
+      document.getElementById('form-unit').value = values.unit || '';
+      document.getElementById('form-status').value = values.status_code || values.lifecycle_status || 'active';
+      document.getElementById('form-price').value = values.price || values.list_price || '';
+      document.getElementById('form-wholesale').value = values.wholesale_price || '';
+      document.getElementById('form-params').value = values.params || values.core_params || '';
+      document.getElementById('form-usage').value = values.usage || values.usage_scenarios || '';
+      document.getElementById('form-question').value = values.question || '';
+      document.getElementById('form-answer').value = values.answer || '';
+    }
+
+    function applyFormType(type) {
+      const meta = ITEM_TYPE_META[type] || ITEM_TYPE_META.product;
+      document.getElementById('label-product').textContent = meta.name;
+      document.getElementById('label-category').textContent = meta.category;
+      document.getElementById('label-brand').textContent = meta.brand;
+      document.getElementById('label-spec').textContent = meta.spec;
+      document.getElementById('label-unit').textContent = meta.unit;
+
+      const placeholders = {
+        product: ['例如：高粘冷补料', '例如：北鹏', '例如：25kg/袋', '例如：袋、桶、平方米', '例如：可雨后施工、开放交通时间、施工温度、导热系数、容重等', '例如：市政道路坑槽快修、屋面保温、地下室防水'],
+        store: ['例如：天津武清仓库', '例如：鑫源建材/张经理', '例如：天津市武清区', '例如：022-xxxxxxx / 手机号', '填写详细地址、导航关键词、营业时间、是否支持自提、装车条件', '例如：天津及周边配送、自提、工程客户看样'],
+        contact: ['例如：售后服务联系人', '例如：售后部/张经理', '例如：手机号、座机、企业微信、邮箱', '例如：工作日 8:30-18:00', '填写什么问题找谁、哪些情况必须转人工、响应时效', '例如：破损少货、退换货、投诉升级'],
+        policy: ['例如：货物破损处理规则', '例如：客服/仓储', '例如：签收后24小时内', '例如：24小时内反馈', '填写规则、举证材料、处理时效、人工边界', '例如：破损、少货、错发、退换货'],
+        faq: ['例如：天津武清是否配送', '例如：客服', '例如：配送/上楼/无电梯', '例如：工作时间', '填写回答依据、需要追问的信息、不能承诺的边界', '例如：配送咨询、报价前置问题'],
+      }[type] || [];
+      document.getElementById('form-product').placeholder = placeholders[0] || '';
+      document.getElementById('form-brand').placeholder = placeholders[1] || '';
+      document.getElementById('form-spec').placeholder = placeholders[2] || '';
+      document.getElementById('form-unit').placeholder = placeholders[3] || '';
+      document.getElementById('form-params').placeholder = placeholders[4] || '';
+      document.getElementById('form-usage').placeholder = placeholders[5] || '';
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('product-modal');
+      modal.classList.remove('show');
+      setTimeout(() => modal.style.display = 'none', 200);
+    }
+
+    async function saveProduct() {
+      const itemType = document.getElementById('form-item-type').value || 'product';
+      const product = document.getElementById('form-product').value.trim();
+      const brand = document.getElementById('form-brand').value.trim();
+      const spec = document.getElementById('form-spec').value.trim();
+      if (!product || (itemType === 'product' && !brand) || (itemType === 'contact' && !spec)) {
+        showToast(itemType === 'product' ? '请填写产品名称和品牌' : itemType === 'contact' ? '请填写联系人名称和电话/微信/邮箱' : '请填写名称', 'error');
+        return;
+      }
+
+      const id = document.getElementById('form-id').value;
+      const data = {
+        item_type: itemType,
+        product,
+        category: document.getElementById('form-category').value,
+        brand,
+        spec,
+        unit: document.getElementById('form-unit').value.trim(),
+        lifecycle_status: document.getElementById('form-status').value,
+        price: document.getElementById('form-price').value,
+        wholesale_price: document.getElementById('form-wholesale').value,
+        params: document.getElementById('form-params').value.trim(),
+        usage: document.getElementById('form-usage').value.trim(),
+        question: document.getElementById('form-question').value.trim(),
+        answer: document.getElementById('form-answer').value.trim(),
+        publish: true,
+        sync: true,
+      };
+
+      try {
+        const result = id ? await updateKnowledge(id, data) : await addKnowledge(data);
+        if (result.error) throw new Error(result.error);
+        closeModal();
+        if (result.sync_status === 'failed') {
+          showToast('已保存到 Supabase，但 Dify 同步失败，可在列表中重试', 'error');
+        } else {
+          showToast('已保存到 Supabase，并同步到 Dify', 'success');
+        }
+        await loadKnowledge();
+        await loadKnowledgeQuality();
+      } catch (e) {
+        showToast('保存失败：' + (e.message || '未知错误'), 'error');
+      }
+    }
+
+    function statusLabel(status) {
+      const map = { open: '待处理', drafted: '草稿中', added_to_kb: '已补充', ignored: '已忽略' };
+      return map[status] || status;
+    }
+
+    function priorityLabel(priority) {
+      const map = { high: '高优先级', medium: '中优先级', low: '低优先级', urgent: '高优先级', normal: '中优先级' };
+      return map[priority] || priority;
+    }
+
+    function itemTypeLabel(type) {
+      return (ITEM_TYPE_META[type] || { label: type || '知识' }).label;
+    }
+
+    function defaultCategory(type) {
+      return { product: '保温材料', policy: '售后政策', faq: '常见问题', store: '门店', contact: '销售咨询' }[type] || '常见问题';
+    }
+
+    function formatMoney(value) {
+      if (value === null || value === undefined || value === '') return '-';
+      return `${Number(value).toFixed(2)} 元`;
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value).slice(0, 19);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function escapeAttr(text) {
+      return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    document.getElementById('product-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+    document.getElementById('gap-promote-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeGapPromoteModal();
+    });
+
+    function showToast(msg, type) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (type ? ' toast-' + type : '');
+      setTimeout(() => el.className = 'toast', 3200);
+    }
+  </script>
+</body>
+</html>
+

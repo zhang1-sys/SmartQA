@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: smartqa-web
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /api/system/health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: INTERNAL_AUTH_REQUIRED
+        value: "true"
+      - key: MOCK_AI_ENABLED
+        value: "false"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CUSTOMER_ACCESS_TOKEN_SECRET
+        sync: false
+      - key: DIFY_API_URL
+        sync: false
+      - key: DIFY_API_KEY
+        sync: false
+      - key: DIFY_DATASET_ID
+        sync: false
+      - key: DIFY_DATASET_API_KEY
+        sync: false
+      - key: WECOM_CORP_ID
+        sync: false
+      - key: WECOM_AGENT_ID
+        sync: false
+      - key: WECOM_SECRET
+        sync: false
+      - key: WECOM_KF_SECRET
+        sync: false
+      - key: WECOM_KF_OPEN_KFID
+        sync: false
+      - key: WECOM_TOKEN
+        sync: false
+      - key: WECOM_ENCODING_AES_KEY
+        sync: false
+      - key: WECOM_PUBLIC_BASE_URL
+        sync: false
+      - key: WECOM_KF_POLL_ENABLED
+        value: "true"
+      - key: WECOM_KF_POLL_INTERVAL_SECONDS
+        value: "15"
+      - key: WECOM_KF_WELCOME_ENABLED
+        value: "true"
+      - key: WECOM_KF_WELCOME_TEXT
+        sync: false
+      - key: OPERATIONS_ALERTS_ENABLED
+        value: "false"

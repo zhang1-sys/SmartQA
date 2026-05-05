@@ -1,0 +1,704 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 客服对话</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <nav class="top-navbar">
+    <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">S</div>
+        <span class="navbar-brand-gradient">SmartQA</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:14px;">
+        <a href="chat.html" class="nav-link-active" style="text-decoration:none;padding:16px 0;">客服对话</a>
+        <a href="dashboard.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">质检看板</a>
+        <a href="knowledge.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">知识库</a>
+        <a href="monitor.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">运行监控</a>
+        <a href="audit.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">审计日志</a>
+        <a href="wecom.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">企业微信</a>
+        <a href="#" onclick="logout();return false;" style="text-decoration:none;color:#94a3b8;padding:16px 0;border-bottom:2px solid transparent;">退出</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主体 -->
+  <div style="display:flex;height:calc(100vh - 56px);max-width:1400px;margin:0 auto;">
+    <!-- 左侧会话列表 -->
+    <div class="sidebar" style="width:300px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;">
+      <div style="padding:16px;border-bottom:1px solid #f1f5f9;">
+        <div style="position:relative;">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;">&#128269;</span>
+          <input class="search-input" placeholder="搜索客户..." style="padding-left:36px;" id="session-search" oninput="filterSessions()">
+        </div>
+        <div class="queue-tabs" id="queue-tabs" style="margin-top:12px;">
+          <button class="queue-tab active" data-filter="wecom" onclick="setQueueFilter('wecom')">企业微信</button>
+          <button class="queue-tab" data-filter="needs_human" onclick="setQueueFilter('needs_human')">待人工</button>
+          <button class="queue-tab" data-filter="web_customer" onclick="setQueueFilter('web_customer')">网页客户</button>
+          <button class="queue-tab" data-filter="internal" onclick="setQueueFilter('internal')">内部</button>
+          <button class="queue-tab" data-filter="all" onclick="setQueueFilter('all')">全部</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:8px;" id="session-list">
+        <!-- 会话列表由 JS 动态加载 -->
+        <div style="text-align:center;padding:40px;color:#94a3b8;font-size:13px;">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 右侧对话区 -->
+    <div style="flex:1;display:flex;flex-direction:column;background:#f8fafc;">
+      <!-- 客户信息栏 -->
+      <div id="customer-header" style="padding:12px 24px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#94a3b8,#64748b);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;" id="customer-avatar">?</div>
+          <div>
+            <div style="font-weight:600;font-size:15px;" id="customer-name">选择一个会话</div>
+            <div style="display:flex;gap:8px;margin-top:2px;" id="customer-tags"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn-secondary" id="memory-toggle-btn" onclick="toggleCustomerMemory()" disabled>客户画像</button>
+          <button class="btn-secondary" onclick="markNeedsHuman()">转人工</button>
+          <button class="btn-secondary" onclick="markResolved()">已解决</button>
+          <div id="qa-status" style="background:#f1f5f9;color:#64748b;font-size:12px;padding:6px 16px;border-radius:20px;font-weight:500;">等待中</div>
+        </div>
+      </div>
+
+      <!-- 对话区域 -->
+      <div id="customer-memory-panel" class="customer-memory-panel" style="display:none;"></div>
+      <div style="flex:1;overflow-y:auto;padding:24px;" id="chat-messages">
+        <div style="text-align:center;margin:40px 0;color:#94a3b8;font-size:14px;">
+          选择左侧会话开始对话，或发送新消息创建会话
+        </div>
+      </div>
+
+      <!-- 输入区 -->
+      <div style="padding:16px 24px;background:#fff;border-top:1px solid #e2e8f0;">
+        <div style="display:flex;gap:12px;align-items:flex-end;">
+          <div style="flex:1;position:relative;">
+            <textarea id="message-input" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="1" style="width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;font-size:14px;resize:none;outline:none;font-family:inherit;line-height:1.5;transition:border-color 0.15s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+          </div>
+          <button class="btn-secondary" onclick="sendHumanMessage()" style="padding:12px 18px;border-radius:12px;white-space:nowrap;">人工回复</button>
+          <button class="btn-brand" onclick="sendMessage()" style="padding:12px 24px;border-radius:12px;white-space:nowrap;">AI发送</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;color:#94a3b8;" id="system-mode">正在检测系统配置...</span>
+          <span style="font-size:12px;color:#64748b;">人工回复会落库并进入审计链路</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/app.js"></script>
+  <script>
+    let currentSessionId = null;
+    let currentConvId = null;
+    let conversations = [];
+    let currentQueueFilter = 'wecom';
+    let currentCustomerMemory = null;
+    let customerMemoryExpanded = false;
+
+    // 页面加载时获取会话列表
+    document.addEventListener('DOMContentLoaded', function() {
+      boot();
+    });
+
+    async function boot() {
+      const ok = await ensureAuthenticated();
+      if (!ok) return;
+      loadConversations();
+      loadSystemMode();
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = 'login.html';
+    }
+
+    async function loadSystemMode() {
+      try {
+        const health = await fetchSystemHealth();
+        const parts = [
+          `数据层：${health.data_backend}`,
+          health.config.mock_ai_enabled ? 'Mock AI' : 'Dify AI',
+          health.config.wecom_enabled ? '企业微信已配置' : '企业微信未配置'
+        ];
+        document.getElementById('system-mode').textContent = parts.join(' · ');
+      } catch (e) {
+        document.getElementById('system-mode').textContent = '系统配置检测失败';
+      }
+    }
+
+    async function loadConversations() {
+      try {
+        conversations = await fetchConversations();
+        renderSessionList();
+      } catch (e) {
+        document.getElementById('session-list').innerHTML =
+          '<div style="text-align:center;padding:40px;color:#dc2626;font-size:13px;">无法连接后端服务</div>';
+      }
+    }
+
+    function renderSessionList() {
+      _renderSessionList(filteredConversations());
+    }
+
+    function filterSessions() {
+      _renderSessionList(filteredConversations());
+    }
+
+    function setQueueFilter(filter) {
+      currentQueueFilter = filter;
+      currentSessionId = null;
+      currentConvId = null;
+      currentCustomerMemory = null;
+      customerMemoryExpanded = false;
+      renderCustomerMemory(null);
+      document.querySelectorAll('.queue-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      _renderSessionList(filteredConversations());
+    }
+
+    function filteredConversations() {
+      const kw = document.getElementById('session-search').value.trim().toLowerCase();
+      return conversations.filter(c => {
+        const statusCode = c.status_code || c.status;
+        const channel = c.channel || 'internal';
+        const channelMatched =
+          currentQueueFilter === 'all' ||
+          (currentQueueFilter === 'needs_human' && statusCode === 'needs_human') ||
+          (currentQueueFilter === 'wecom' && (channel === 'wecom' || channel === 'wecom_kf')) ||
+          (currentQueueFilter === 'web_customer' && channel === 'web_customer') ||
+          (currentQueueFilter === 'internal' && channel === 'internal');
+        const keywordMatched = !kw ||
+          (c.customer_name || '').toLowerCase().includes(kw) ||
+          (c.customer_type || '').toLowerCase().includes(kw) ||
+          channelLabel(channel).toLowerCase().includes(kw);
+        return channelMatched && keywordMatched;
+      });
+    }
+
+    function _renderSessionList(list) {
+      const container = document.getElementById('session-list');
+      if (!list.length) {
+        container.innerHTML = '<div style="text-align:center;padding:40px 18px;color:#94a3b8;font-size:13px;line-height:1.7;">当前队列暂无会话<br>可切换到“全部”或用企业微信模拟入口创建客户会话</div>';
+        return;
+      }
+      container.innerHTML = list.map((c, i) => {
+        const statusCode = c.status_code || c.status;
+        const displayStatus = statusLabel(statusCode, c.status);
+        const statusClass = statusCode === 'active' ? 'status-active' :
+                            statusCode === 'needs_human' ? 'status-escalated' : 'status-resolved';
+        const isActive = c.session_id === currentSessionId;
+        return `
+          <div class="session-item ${isActive ? 'active' : ''}" onclick="selectSessionById('${c.session_id}', event)">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:${isActive?'600':'500'};font-size:14px;${isActive?'':'color:#475569'}">${c.customer_name}</span>
+              <span class="status-badge ${statusClass}">${displayStatus}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              <span style="color:#94a3b8;font-size:12px;">${c.customer_type}</span>
+              <span class="channel-mini-tag ${channelTagClass(c.channel)}">${channelLabel(c.channel)}</span>
+            </div>
+            <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">${formatTime(c.created_at)}</div>
+          </div>`;
+      }).join('');
+
+      // 默认选中第一个
+      if (list.length > 0 && !currentSessionId) {
+        selectSessionById(list[0].session_id);
+      }
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const now = new Date();
+      const diff = now - d;
+      if (diff < 60000) return '刚刚';
+      if (diff < 3600000) return Math.floor(diff/60000) + '分钟前';
+      if (diff < 86400000) return Math.floor(diff/3600000) + '小时前';
+      return ts.substring(5, 16);
+    }
+
+    async function selectSessionById(sessionId, evt) {
+      const conv = conversations.find(c => c.session_id === sessionId);
+      if (!conv) return;
+
+      currentSessionId = conv.session_id;
+      currentConvId = conv.id;
+      currentCustomerMemory = null;
+      customerMemoryExpanded = false;
+      renderCustomerMemory(null);
+
+      // 高亮对应的会话项
+      document.querySelectorAll('.session-item').forEach(el => {
+        el.classList.remove('active');
+      });
+      if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
+
+      // 更新头部
+      document.getElementById('customer-name').textContent = conv.customer_name;
+      document.getElementById('customer-avatar').textContent = conv.customer_name.charAt(0);
+      document.getElementById('customer-tags').innerHTML =
+        `<span style="background:#f1f5f9;color:#64748b;font-size:11px;padding:2px 8px;border-radius:10px;">${conv.customer_type}</span>
+         <span style="background:#eef2ff;color:#4f46e5;font-size:11px;padding:2px 8px;border-radius:10px;">${channelLabel(conv.channel)}</span>`;
+
+      const statusCode = conv.status_code || conv.status;
+      const statusText = statusCode === 'active' ? '质检中 ●' : statusLabel(statusCode, conv.status);
+      const statusColor = statusCode === 'active' ? 'background:#ede9fe;color:#7c3aed;' :
+                          statusCode === 'needs_human' ? 'background:#fee2e2;color:#dc2626;' :
+                          'background:#dcfce7;color:#16a34a;';
+      document.getElementById('qa-status').style.cssText = statusColor + 'font-size:12px;padding:6px 16px;border-radius:20px;font-weight:500;';
+      document.getElementById('qa-status').textContent = statusText;
+
+      // 加载对话详情
+      try {
+        const detail = await fetchConversation(conv.id);
+        renderCustomerMemory(detail.customer_memory);
+        renderMessages(detail.messages || []);
+      } catch (e) {
+        renderCustomerMemory(null);
+        document.getElementById('chat-messages').innerHTML =
+          '<div style="text-align:center;margin:40px 0;color:#dc2626;">加载对话失败</div>';
+      }
+    }
+
+    function renderCustomerMemory(memory) {
+      const panel = document.getElementById('customer-memory-panel');
+      const button = document.getElementById('memory-toggle-btn');
+      if (!panel) return;
+      currentCustomerMemory = memory || null;
+      if (!memory || !memory.profile) {
+        panel.style.display = 'none';
+        panel.innerHTML = '';
+        if (button) {
+          button.disabled = true;
+          button.textContent = '客户画像';
+          button.classList.remove('active');
+        }
+        return;
+      }
+      if (button) {
+        button.disabled = false;
+        button.textContent = customerMemoryExpanded ? '收起画像' : '客户画像';
+        button.classList.toggle('active', customerMemoryExpanded);
+      }
+      if (!customerMemoryExpanded) {
+        panel.style.display = 'none';
+        return;
+      }
+      const profile = memory.profile || {};
+      const facts = memory.facts || [];
+      const summary = memory.summary || {};
+      const productFacts = facts.filter(f => f.fact_type === 'product_interest').slice(0, 5);
+      const specFacts = facts.filter(f => f.fact_type === 'spec_requirement').slice(0, 6);
+      const cityFacts = facts.filter(f => f.fact_type === 'city').slice(0, 2);
+      const riskFacts = facts.filter(f => f.fact_type === 'risk').slice(0, 3);
+      const priceFacts = facts.filter(f => f.fact_type === 'budget_signal').slice(0, 2);
+      panel.style.display = 'grid';
+      panel.innerHTML = `
+        <section class="memory-card memory-card-main">
+          <div class="memory-label">客户画像</div>
+          <div class="memory-title">${escapeHtml(profile.display_name || '未知客户')}</div>
+          <div class="memory-subtitle">${escapeHtml(profile.company_name || profile.customer_type || '未记录公司/类型')}</div>
+          <div class="memory-row">
+            ${profile.lifecycle_stage ? `<span class="memory-chip neutral">${escapeHtml(lifecycleLabel(profile.lifecycle_stage))}</span>` : ''}
+            ${cityFacts.length ? cityFacts.map(f => `<span class="memory-chip neutral">${escapeHtml(f.fact_value)}</span>`).join('') : ''}
+            ${profile.last_intent ? `<span class="memory-chip neutral">${escapeHtml(profile.last_intent)}</span>` : ''}
+          </div>
+        </section>
+        <section class="memory-card">
+          <div class="memory-label">关注产品</div>
+          <div class="memory-row">${renderMemoryChips(productFacts, 'product_interest')}</div>
+        </section>
+        <section class="memory-card">
+          <div class="memory-label">规格/价格信号</div>
+          <div class="memory-row">
+            ${renderMemoryChips(specFacts, 'spec_requirement')}
+            ${renderMemoryChips(priceFacts, 'budget_signal')}
+          </div>
+        </section>
+        <section class="memory-card memory-card-wide">
+          <div class="memory-label">会话摘要</div>
+          <div class="memory-text">${escapeHtml(summary.summary || '暂无稳定摘要')}</div>
+          ${summary.open_questions ? `<div class="memory-alert">待核实：${escapeHtml(summary.open_questions)}</div>` : ''}
+          ${riskFacts.length ? `<div class="memory-row memory-risk-row">${renderMemoryChips(riskFacts, 'risk')}</div>` : ''}
+        </section>`;
+    }
+
+    function toggleCustomerMemory() {
+      if (!currentCustomerMemory || !currentCustomerMemory.profile) return;
+      customerMemoryExpanded = !customerMemoryExpanded;
+      renderCustomerMemory(currentCustomerMemory);
+    }
+
+    function renderMemoryChips(facts, type) {
+      if (!facts || !facts.length) {
+        return '<span class="memory-empty">暂无</span>';
+      }
+      return facts.map(f => {
+        const cls = type === 'risk' ? 'danger' : type === 'budget_signal' ? 'warning' : 'neutral';
+        return `<span class="memory-chip ${cls}" title="置信度 ${Number(f.confidence || 0).toFixed(2)}">${escapeHtml(f.fact_value || '')}</span>`;
+      }).join('');
+    }
+
+    function lifecycleLabel(stage) {
+      const map = {
+        unknown: '阶段未知',
+        lead: '线索',
+        prospect: '潜在客户',
+        active_customer: '成交客户',
+        at_risk: '风险客户',
+        inactive: '沉默客户'
+      };
+      return map[stage] || stage;
+    }
+
+    function renderMessages(messages) {
+      const container = document.getElementById('chat-messages');
+      if (!messages.length) {
+        container.innerHTML = '<div style="text-align:center;margin:40px 0;color:#94a3b8;">该会话暂无消息</div>';
+        return;
+      }
+
+      container.innerHTML = messages.map(m => {
+        const time = m.timestamp ? m.timestamp.substring(11, 16) : '';
+        if (m.role === 'customer') {
+          return `
+            <div style="display:flex;flex-direction:column;align-items:flex-start;margin-bottom:20px;">
+              <div style="display:flex;gap:10px;max-width:76%;">
+                <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">客</div>
+                <div class="bubble-customer">
+                  <div style="line-height:1.7;font-size:14px;">${escapeHtml(m.content)}</div>
+                  <div style="color:#cbd5e1;font-size:11px;margin-top:8px;">${time}</div>
+                </div>
+              </div>
+              ${renderCustomerOpsPanel(m)}
+            </div>`;
+        } else {
+          return `
+            <div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:12px;">
+              <div style="display:flex;gap:10px;max-width:70%;">
+                <div class="bubble-ai">
+                  <div style="line-height:1.7;font-size:14px;">${formatAiContent(m.content)}</div>
+                  <div style="color:#cbd5e1;font-size:11px;margin-top:8px;text-align:right;">${time}</div>
+                </div>
+                <div style="width:36px;height:36px;background:${m.role === 'human' ? 'linear-gradient(135deg,#0f766e,#14b8a6)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)'};border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">${m.role === 'human' ? '人' : 'AI'}</div>
+              </div>
+              ${renderQaBlock(m.qa)}
+              ${renderAiRunPanel(m)}
+            </div>`;
+        }
+      }).join('');
+
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatAiContent(text) {
+      if (!text) return '';
+      // 简单的 Markdown 转换
+      return escapeHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#4f46e5;">$1</strong>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>')
+        .replace(/\|(.+?)\|/g, function(match) {
+          return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;margin:4px 0;font-size:13px;">' + match.replace(/\|/g, ' | ') + '</div>';
+        });
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('message-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      // 如果没有选中会话，创建新的
+      if (!currentSessionId) {
+        currentSessionId = 'session-' + Date.now();
+      }
+
+      const container = document.getElementById('chat-messages');
+      const now = new Date();
+      const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+      // 添加客户消息到界面
+      container.innerHTML += `
+        <div style="display:flex;margin-bottom:20px;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">客</div>
+          <div class="bubble-customer">
+            <div style="line-height:1.7;font-size:14px;">${escapeHtml(msg)}</div>
+            <div style="color:#cbd5e1;font-size:11px;margin-top:8px;">${time}</div>
+          </div>
+        </div>`;
+
+      input.value = '';
+      container.scrollTop = container.scrollHeight;
+
+      // 显示 AI 思考中
+      const thinkingId = 'thinking-' + Date.now();
+      container.innerHTML += `
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:12px;" id="${thinkingId}">
+          <div style="display:flex;gap:10px;max-width:70%;">
+            <div class="bubble-ai">
+              <div style="line-height:1.7;font-size:14px;color:#94a3b8;font-style:italic;">AI 正在思考...</div>
+              <div style="color:#cbd5e1;font-size:11px;margin-top:8px;text-align:right;">${time}</div>
+            </div>
+            <div style="width:36px;height:36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">AI</div>
+          </div>
+        </div>`;
+      container.scrollTop = container.scrollHeight;
+
+      // 调用后端 API
+      try {
+        const result = await sendChatMessage(currentSessionId, msg);
+        if (result.error) throw new Error(result.error);
+
+        // 替换思考气泡为真实回复
+        const thinkingEl = document.getElementById(thinkingId);
+        if (thinkingEl) {
+          thinkingEl.innerHTML = `
+            <div style="display:flex;gap:10px;max-width:70%;">
+              <div class="bubble-ai">
+                <div style="line-height:1.7;font-size:14px;">${formatAiContent(result.answer)}</div>
+                <div style="color:#cbd5e1;font-size:11px;margin-top:8px;text-align:right;">${time}</div>
+              </div>
+              <div style="width:36px;height:36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">AI</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px;margin-right:46px;">
+              ${renderQaTags(result.qa)}
+            </div>
+            ${renderInlineAiRunSummary(result)}`;
+        }
+        container.scrollTop = container.scrollHeight;
+
+        // 刷新会话列表
+        loadConversations();
+      } catch (e) {
+        const thinkingEl = document.getElementById(thinkingId);
+        if (thinkingEl) {
+          thinkingEl.innerHTML = `
+            <div style="display:flex;gap:10px;max-width:70%;">
+              <div class="bubble-ai">
+                <div style="line-height:1.7;font-size:14px;color:#dc2626;">发送失败：${e.message || '网络错误'}</div>
+              </div>
+              <div style="width:36px;height:36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;">AI</div>
+            </div>`;
+        }
+      }
+    }
+
+    async function markNeedsHuman() {
+      if (!currentConvId) return;
+      const reason = prompt('请输入转人工原因，例如：价格需人工核价、售后投诉、库存需确认');
+      if (reason === null) return;
+      const result = await updateConversationStatus(currentConvId, 'needs_human', reason.trim());
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      await loadConversations();
+      const conv = conversations.find(c => c.id === currentConvId);
+      if (conv) await selectSessionById(conv.session_id);
+    }
+
+    async function markResolved() {
+      if (!currentConvId) return;
+      const result = await updateConversationStatus(currentConvId, 'resolved');
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      await loadConversations();
+      const conv = conversations.find(c => c.id === currentConvId);
+      if (conv) await selectSessionById(conv.session_id);
+    }
+
+    async function sendHumanMessage() {
+      const input = document.getElementById('message-input');
+      const msg = input.value.trim();
+      if (!currentConvId || !msg) return;
+
+      const result = await sendHumanReply(currentConvId, msg, true);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      input.value = '';
+      await loadConversations();
+      const conv = conversations.find(c => c.id === currentConvId);
+      if (conv) await selectSessionById(conv.session_id);
+    }
+
+    function statusLabel(statusCode, fallback) {
+      const map = {
+        active: '进行中',
+        ai_replied: 'AI已回复',
+        needs_human: '待人工',
+        resolved: '已解决'
+      };
+      return map[statusCode] || fallback || statusCode || '';
+    }
+
+    function channelLabel(channel) {
+      if (channel === 'wecom_kf') return '微信客服';
+      const map = {
+        internal: '内部工作台',
+        wecom: '企业微信',
+        web_customer: '网页客户'
+      };
+      return map[channel] || channel || '未知渠道';
+    }
+
+    function channelTagClass(channel) {
+      if (channel === 'wecom' || channel === 'wecom_kf') return 'wecom';
+      if (channel === 'web_customer') return 'web';
+      return 'internal';
+    }
+
+    function decisionLabel(decision) {
+      const action = typeof decision === 'string' ? decision : decision && decision.action;
+      const map = {
+        send: '自动回复',
+        retry: '重试',
+        handoff: '转人工',
+        no_answer: '不自动回复'
+      };
+      return map[action] || action || '未知';
+    }
+
+    function riskLabel(risk) {
+      const map = { low: '低风险', medium: '中风险', high: '高风险' };
+      return map[risk] || risk || '未评估';
+    }
+
+    function riskClass(risk) {
+      if (risk === 'high') return 'status-escalated';
+      if (risk === 'medium') return 'qa-warn';
+      return 'qa-pass';
+    }
+
+    function truncateId(id) {
+      if (!id) return '';
+      const text = String(id);
+      return text.length > 14 ? text.substring(0, 8) + '...' + text.slice(-4) : text;
+    }
+
+    function renderQaBlock(qa) {
+      if (!qa) return '';
+      return `
+        <div style="display:flex;gap:6px;margin-top:8px;margin-right:46px;flex-wrap:wrap;justify-content:flex-end;">
+          ${renderQaTags(qa)}
+        </div>`;
+    }
+
+    function renderQaTags(qa) {
+      if (!qa) {
+        return '';
+      }
+      const labels = [
+        ['accuracy', '准确'],
+        ['completeness', '完整'],
+        ['professionalism', '专业'],
+        ['empathy', '同理'],
+        ['efficiency', '效率']
+      ];
+      return labels.map(([key, label]) => {
+        const score = Number(qa[key] || 0);
+        const cls = score >= 4 ? 'qa-pass' : score >= 3 ? 'qa-warn' : 'status-escalated';
+        const mark = score >= 4 ? '&#10003;' : score >= 3 ? '&#9651;' : '!';
+        return `<span class="qa-tag ${cls}">${label} ${score || '-'} ${mark}</span>`;
+      }).join('') + `
+        <span class="qa-tag ${riskClass(qa.risk_level)}">综合 ${Number(qa.overall_score || 0).toFixed(1)}</span>
+        <span class="qa-tag ${qa.passed ? 'qa-pass' : 'status-escalated'}">${qa.passed ? '通过' : '未通过'}</span>`;
+    }
+
+    function renderCustomerOpsPanel(message) {
+      const run = message.ai_run;
+      const gap = message.knowledge_gap || (message.knowledge_gaps && message.knowledge_gaps[0]);
+      if (!run && !gap) return '';
+      const decision = run && (run.decision_detail || { action: run.decision });
+      const failed = run && run.status === 'failed';
+      return `
+        <div class="ops-panel ops-panel-left">
+          <div class="ops-row">
+            ${run ? `<span class="ops-chip ${failed ? 'danger' : 'neutral'}">${failed ? 'Dify失败' : 'AI已运行'}</span>` : ''}
+            ${decision ? `<span class="ops-chip ${decision.action === 'send' ? 'success' : 'danger'}">决策：${decisionLabel(decision)}</span>` : ''}
+            ${gap ? `<span class="ops-chip warning">知识盲区</span>` : ''}
+          </div>
+          ${decision && decision.reason ? `<div class="ops-text">原因：${escapeHtml(decision.reason)}</div>` : ''}
+          ${gap ? `<div class="ops-text">盲区：${escapeHtml(gap.question || '')}</div>` : ''}
+          ${run && run.error ? `<div class="ops-text danger-text">错误：${escapeHtml(run.error)}</div>` : ''}
+        </div>`;
+    }
+
+    function renderAiRunPanel(message) {
+      if (message.role !== 'assistant') return '';
+      const run = message.ai_run || {};
+      const qa = message.qa || run.qa;
+      const decision = message.decision || run.decision_detail || (run.decision ? { action: run.decision } : null);
+      const knowledge = message.knowledge || run.knowledge || {};
+      const gap = message.knowledge_gap || run.knowledge_gap;
+      if (!qa && !decision && !knowledge.hit && !gap && !run.id && !message.delivery_status) return '';
+      const sourceCount = Array.isArray(knowledge.sources) ? knowledge.sources.length : 0;
+      return `
+        <div class="ops-panel ops-panel-right">
+          <div class="ops-row">
+            ${qa ? `<span class="ops-chip ${qa.passed ? 'success' : 'danger'}">质检：${qa.passed ? '通过' : '未通过'}</span>` : ''}
+            ${qa ? `<span class="ops-chip ${riskClass(qa.risk_level).includes('escalated') ? 'danger' : qa.risk_level === 'medium' ? 'warning' : 'success'}">${riskLabel(qa.risk_level)}</span>` : ''}
+            ${decision ? `<span class="ops-chip ${decision.action === 'send' ? 'success' : 'danger'}">决策：${decisionLabel(decision)}</span>` : ''}
+            ${knowledge.hit ? `<span class="ops-chip neutral">检索命中 ${sourceCount}</span>` : ''}
+            ${message.delivery_status ? `<span class="ops-chip neutral">投递：${message.delivery_status}</span>` : ''}
+          </div>
+          ${qa && qa.reason ? `<div class="ops-text">质检原因：${escapeHtml(qa.reason)}</div>` : ''}
+          ${decision && decision.reason ? `<div class="ops-text">决策原因：${escapeHtml(decision.reason)}</div>` : ''}
+          ${gap ? `<div class="ops-text">知识盲区：${escapeHtml(gap.question || '')}</div>` : ''}
+          ${run.id ? `
+            <div class="ops-meta">
+              AI Run ${truncateId(run.id)}
+              ${run.dify_conversation_id ? ` · Dify会话 ${truncateId(run.dify_conversation_id)}` : ''}
+              ${run.dify_run_id ? ` · Dify消息 ${truncateId(run.dify_run_id)}` : ''}
+              ${run.latency_ms ? ` · ${run.latency_ms}ms` : ''}
+            </div>` : ''}
+        </div>`;
+    }
+
+    function renderInlineAiRunSummary(result) {
+      const decision = result.decision || {};
+      return `
+        <div class="ops-panel ops-panel-right" style="margin-top:8px;">
+          <div class="ops-row">
+            <span class="ops-chip ${decision.action === 'send' ? 'success' : 'danger'}">决策：${decisionLabel(decision)}</span>
+            ${result.qa ? `<span class="ops-chip ${result.qa.passed ? 'success' : 'danger'}">质检：${result.qa.passed ? '通过' : '未通过'}</span>` : ''}
+            ${result.knowledge_gap ? '<span class="ops-chip warning">已生成知识盲区</span>' : ''}
+          </div>
+          ${decision.reason ? `<div class="ops-text">原因：${escapeHtml(decision.reason)}</div>` : ''}
+          ${result.ai_run_id ? `<div class="ops-meta">AI Run ${truncateId(result.ai_run_id)}${result.dify_conversation_id ? ` · Dify会话 ${truncateId(result.dify_conversation_id)}` : ''}</div>` : ''}
+        </div>`;
+    }
+
+    // Enter 发送
+    document.getElementById('message-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const conv = conversations.find(c => c.id === currentConvId);
+        if (conv && (conv.status_code || conv.status) === 'needs_human') {
+          sendHumanMessage();
+        } else {
+          sendMessage();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

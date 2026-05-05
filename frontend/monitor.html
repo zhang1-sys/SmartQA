@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 运行监控</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="top-navbar">
+    <div style="max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">S</div>
+        <span class="navbar-brand-gradient">SmartQA</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:14px;">
+        <a href="chat.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">客服对话</a>
+        <a href="dashboard.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">质检看板</a>
+        <a href="knowledge.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">知识库</a>
+        <a href="monitor.html" class="nav-link-active" style="text-decoration:none;padding:16px 0;">运行监控</a>
+        <a href="audit.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">审计日志</a>
+        <a href="wecom.html" style="text-decoration:none;color:#64748b;padding:16px 0;border-bottom:2px solid transparent;">企业微信</a>
+        <a href="#" onclick="logout();return false;" style="text-decoration:none;color:#94a3b8;padding:16px 0;border-bottom:2px solid transparent;">退出</a>
+      </div>
+    </div>
+  </nav>
+
+  <main style="max-width:1400px;margin:0 auto;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px;">
+      <div>
+        <h1 style="font-size:24px;font-weight:800;color:#0f172a;">运行监控</h1>
+        <p style="color:#64748b;font-size:14px;margin-top:6px;">集中查看 AI、企业微信投递、知识同步、待人工和高优先级知识盲区。</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-secondary" onclick="sendAlerts()">发送告警</button>
+        <button class="btn-secondary" onclick="archiveCurrentFailures()">归档历史异常</button>
+        <button class="btn-secondary" onclick="retryFailedSync()">重试失败同步</button>
+        <button class="btn-brand" onclick="loadMonitor()">刷新</button>
+      </div>
+    </div>
+
+    <section id="summary-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px;">
+      <div class="metric-card"><div style="color:#94a3b8;font-size:13px;">加载中</div></div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:16px;margin-bottom:16px;">
+      <div class="card-shadow" style="background:#fff;padding:20px;border:1px solid #e2e8f0;">
+        <div style="font-size:15px;font-weight:800;color:#1e293b;margin-bottom:12px;">异常告警</div>
+        <div id="alerts-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+      <div class="card-shadow" style="background:#fff;padding:20px;border:1px solid #e2e8f0;">
+        <div style="font-size:15px;font-weight:800;color:#1e293b;margin-bottom:12px;">近期审计事件</div>
+        <div id="audit-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </section>
+
+    <section class="card-shadow" style="background:#fff;padding:20px;border:1px solid #e2e8f0;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#1e293b;">数据治理</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:3px;">敏感信息脱敏、会话保留周期、审计日志保留和知识版本保留策略。</div>
+        </div>
+        <button class="btn-secondary" onclick="loadGovernance()">刷新治理</button>
+      </div>
+      <div id="governance-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
+        <div style="color:#94a3b8;font-size:13px;">加载中...</div>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+      <div class="card-shadow monitor-panel">
+        <div class="monitor-panel-title">Dify / AI 失败</div>
+        <div id="failed-ai"></div>
+      </div>
+      <div class="card-shadow monitor-panel">
+        <div class="monitor-panel-title">消息投递失败</div>
+        <div id="failed-delivery"></div>
+      </div>
+      <div class="card-shadow monitor-panel">
+        <div class="monitor-panel-title">知识同步失败</div>
+        <div id="failed-sync"></div>
+      </div>
+      <div class="card-shadow monitor-panel">
+        <div class="monitor-panel-title">高优先级知识盲区</div>
+        <div id="high-gaps"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="assets/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', boot);
+
+    async function boot() {
+      const ok = await ensureAuthenticated();
+      if (!ok) return;
+      loadMonitor();
+      loadGovernance();
+    }
+
+    function logout() {
+      clearAuthSession();
+      location.href = 'login.html';
+    }
+
+    async function loadMonitor() {
+      const data = await fetchOperationsMonitor();
+      if (data.error) {
+        showToast(data.error, 'error');
+        return;
+      }
+      renderSummary(data.summary || {});
+      renderAlerts(data.alerts || []);
+      renderAudit(data.recent_audit || []);
+      renderRows('failed-ai', data.failed_ai_runs || [], row => ({
+        title: `${row.status || '-'} · ${row.decision || '-'}`,
+        meta: `${formatDateTime(row.created_at)} · ${row.latency_ms || 0}ms`,
+        detail: row.error || '无错误详情',
+      }));
+      renderRows('failed-delivery', data.failed_deliveries || [], row => ({
+        title: `${row.channel || '-'} · ${row.role || '-'}`,
+        meta: `${formatDateTime(row.created_at)} · ${row.delivery_status || '-'}`,
+        detail: row.id || '',
+      }));
+      renderRows('failed-sync', data.failed_sync_jobs || data.failed_sync_items || [], row => ({
+        title: row.title || row.knowledge_item_id || row.id || '-',
+        meta: `${formatDateTime(row.created_at || row.updated_at)} · ${row.status || row.sync_status || '-'}`,
+        detail: row.error || row.last_sync_error || '无错误详情',
+      }));
+      renderRows('high-gaps', data.high_open_gaps || [], row => ({
+        title: row.question || '-',
+        meta: `${formatDateTime(row.updated_at)} · ${row.priority || '-'}`,
+        detail: '需要优先沉淀为知识条目',
+      }));
+    }
+
+    function renderSummary(summary) {
+      const cards = [
+        ['会话总数', summary.conversations, '企业微信 ' + (summary.wecom_conversations || 0)],
+        ['自动发送率', `${summary.auto_send_rate || 0}%`, 'AI 样本 ' + (summary.ai_runs_sampled || 0)],
+        ['待人工', summary.needs_human, '需要客服接管'],
+        ['AI 失败', summary.failed_ai_runs, 'Dify/模型/链路'],
+        ['投递失败', summary.failed_deliveries, '企业微信或客户会话'],
+        ['同步失败', summary.failed_sync_jobs, 'Dify Dataset'],
+        ['待同步知识', summary.pending_sync_items, 'pending/syncing'],
+        ['高优先级盲区', summary.open_high_gaps, '知识运营'],
+      ];
+      document.getElementById('summary-grid').innerHTML = cards.map(([label, value, hint]) => `
+        <div class="metric-card" style="padding:16px 18px;">
+          <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">${escapeHtml(label)}</div>
+          <div style="font-size:26px;font-weight:800;color:#1e293b;">${escapeHtml(value === undefined || value === null ? '-' : value)}</div>
+          <div style="color:#94a3b8;font-size:12px;margin-top:6px;">${escapeHtml(hint)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderAlerts(alerts) {
+      const box = document.getElementById('alerts-list');
+      if (!alerts.length) {
+        box.innerHTML = '<div class="empty-state">暂无严重异常</div>';
+        return;
+      }
+      box.innerHTML = alerts.map(alert => {
+        const cls = alert.level === 'critical' ? 'status-escalated' : 'urgency-medium';
+        return `
+          <div class="monitor-row">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+              <strong>${escapeHtml(alert.title)}</strong>
+              <span class="status-badge ${cls}">${alert.count}</span>
+            </div>
+            <div class="monitor-detail">${escapeHtml(alert.hint || '')}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderAudit(rows) {
+      const box = document.getElementById('audit-list');
+      if (!rows.length) {
+        box.innerHTML = '<div class="empty-state">暂无审计事件</div>';
+        return;
+      }
+      box.innerHTML = rows.map(row => `
+        <div class="monitor-row compact">
+          <div style="font-weight:700;color:#334155;">${escapeHtml(row.action || '-')}</div>
+          <div class="monitor-detail">${escapeHtml(row.actor_type || '-')} · ${escapeHtml(row.target_type || '-')} · ${formatDateTime(row.created_at)}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderRows(id, rows, mapper) {
+      const box = document.getElementById(id);
+      if (!rows.length) {
+        box.innerHTML = '<div class="empty-state">暂无记录</div>';
+        return;
+      }
+      box.innerHTML = rows.map(row => {
+        const item = mapper(row);
+        return `
+          <div class="monitor-row">
+            <div style="font-weight:800;color:#1e293b;">${escapeHtml(item.title)}</div>
+            <div class="monitor-detail">${escapeHtml(item.meta)}</div>
+            <div class="monitor-detail danger-text">${escapeHtml(item.detail)}</div>
+          </div>`;
+      }).join('');
+    }
+
+    async function retryFailedSync() {
+      showToast('正在重试失败同步任务...', 'info');
+      const result = await syncFailedKnowledge();
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+      showToast(`已重试 ${result.attempted || 0} 条`, 'success');
+      loadMonitor();
+    }
+
+    async function loadGovernance() {
+      const box = document.getElementById('governance-list');
+      try {
+        const data = await fetchDataGovernance();
+        const policies = data.policies || [];
+        if (!policies.length) {
+          box.innerHTML = '<div class="empty-state">暂无治理策略</div>';
+          return;
+        }
+        box.innerHTML = policies.map(policy => `
+          <div class="monitor-row">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+              <strong>${escapeHtml(policy.policy_name || policy.policy_key)}</strong>
+              <span class="status-badge ${policy.enabled ? 'status-resolved' : 'status-escalated'}">${policy.enabled ? '启用' : '停用'}</span>
+            </div>
+            <div class="monitor-detail">${escapeHtml(policy.policy_type || '-')} · ${escapeHtml(policy.scope || '-')}</div>
+            <div class="monitor-detail">${escapeHtml(JSON.stringify(policy.config || {}))}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        box.innerHTML = '<div style="color:#dc2626;font-size:13px;">数据治理加载失败</div>';
+      }
+    }
+
+    async function sendAlerts() {
+      showToast('正在发送运行告警...', 'info');
+      const result = await sendOperationsAlerts();
+      if (!result.ok) {
+        showToast(result.reason || result.error || '告警发送失败', 'error');
+        return;
+      }
+      showToast(result.sent ? `已发送 ${result.alert_count || 0} 条告警摘要` : (result.reason || '暂无需要发送的告警'), 'success');
+    }
+
+    async function archiveCurrentFailures() {
+      const ok = confirm('确认归档当前 AI 失败、投递失败和知识同步失败记录？原始记录和审计会保留，只是不再作为当前运行异常显示。');
+      if (!ok) return;
+      showToast('正在归档历史异常...', 'info');
+      const result = await resolveCurrentOperations('历史联调异常已确认，不影响当前生产联调');
+      if (!result.ok) {
+        showToast(result.error || '归档失败', 'error');
+        return;
+      }
+      showToast(`已归档 ${result.resolved_count || 0} 条，跳过 ${result.skipped_count || 0} 条`, 'success');
+      loadMonitor();
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value).slice(0, 19);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function showToast(msg, type) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (type ? ' toast-' + type : '');
+      setTimeout(() => el.className = 'toast', 3200);
+    }
+  </script>
+</body>
+</html>

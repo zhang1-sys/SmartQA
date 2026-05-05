@@ -1,0 +1,9 @@
+<xml>
+  <ToUserName><![CDATA[to-corp]]></ToUserName>
+  <FromUserName><![CDATA[user-smoke]]></FromUserName>
+  <CreateTime>1777890000</CreateTime>
+  <MsgType><![CDATA[text]]></MsgType>
+  <Content><![CDATA[100mm岩棉板多少钱？]]></Content>
+  <MsgId>wecom-local-smoke-1</MsgId>
+  <AgentID>1</AgentID>
+</xml>

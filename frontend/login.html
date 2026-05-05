@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 内部登录</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main style="min-height:100vh;display:grid;grid-template-columns:1fr 420px;background:#f8fafc;">
+    <section style="padding:56px;display:flex;flex-direction:column;justify-content:space-between;background:#fff;border-right:1px solid #e2e8f0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">S</div>
+        <span class="navbar-brand-gradient" style="font-size:22px;">SmartQA</span>
+      </div>
+      <div>
+        <div style="font-size:13px;color:#64748b;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;">Internal Console</div>
+        <h1 style="font-size:38px;line-height:1.15;font-weight:800;color:#0f172a;max-width:620px;">建材企业 AI 客服质检与知识运营后台</h1>
+        <p style="font-size:16px;line-height:1.8;color:#64748b;margin-top:18px;max-width:640px;">登录后可处理企业微信会话、复盘 AI 质检、维护 Supabase 知识条目，并同步到 Dify 知识库。</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:680px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+          <div style="font-size:12px;color:#94a3b8;">AI 编排</div>
+          <div style="font-weight:700;margin-top:4px;">Dify 多节点</div>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+          <div style="font-size:12px;color:#94a3b8;">数据底座</div>
+          <div style="font-weight:700;margin-top:4px;">Supabase</div>
+        </div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">
+          <div style="font-size:12px;color:#94a3b8;">客户入口</div>
+          <div style="font-weight:700;margin-top:4px;">企业微信</div>
+        </div>
+      </div>
+    </section>
+
+    <section style="display:flex;align-items:center;justify-content:center;padding:32px;">
+      <div class="card-shadow" style="background:#fff;border:1px solid #e2e8f0;width:100%;padding:28px;">
+        <div style="font-size:20px;font-weight:800;color:#1e293b;">内部人员登录</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:6px;">使用 Supabase Auth 管理员账号进入工作台</div>
+
+        <form onsubmit="submitLogin(event)" style="margin-top:24px;">
+          <div class="form-group">
+            <label class="form-label">邮箱</label>
+            <input class="form-input" id="email" type="email" autocomplete="email" placeholder="admin@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">密码</label>
+            <input class="form-input" id="password" type="password" autocomplete="current-password" required>
+          </div>
+          <button class="btn-brand" style="width:100%;padding:11px 16px;margin-top:4px;" id="login-btn">登录</button>
+        </form>
+
+        <div id="login-message" style="font-size:13px;color:#64748b;margin-top:14px;line-height:1.6;"></div>
+        <div style="border-top:1px solid #f1f5f9;margin-top:22px;padding-top:14px;font-size:12px;color:#94a3b8;line-height:1.7;">
+          本地联调可以关闭 `INTERNAL_AUTH_REQUIRED`；开启后所有内部 API 都需要登录 token。
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        const session = await fetchAuthSession();
+        if (!session.required) {
+          document.getElementById('login-message').textContent = '当前未开启强制登录，可直接进入工作台。';
+        } else if (session.authenticated) {
+          location.href = nextPage();
+        }
+      } catch (e) {
+        document.getElementById('login-message').textContent = '无法检测登录状态，请确认后端服务已启动。';
+      }
+    });
+
+    async function submitLogin(event) {
+      event.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const message = document.getElementById('login-message');
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+      message.style.color = '#64748b';
+      message.textContent = '正在验证账号...';
+      const result = await loginWithSupabase(
+        document.getElementById('email').value.trim(),
+        document.getElementById('password').value
+      );
+      if (result.error) {
+        message.style.color = '#dc2626';
+        message.textContent = result.error;
+        btn.disabled = false;
+        btn.textContent = '登录';
+        return;
+      }
+      location.href = nextPage();
+    }
+
+    function nextPage() {
+      const params = new URLSearchParams(location.search);
+      return params.get('next') || 'chat.html';
+    }
+  </script>
+</body>
+</html>
+

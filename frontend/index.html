@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartQA - 项目入口</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main style="max-width:1120px;margin:0 auto;padding:42px 24px;">
+    <section style="display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:28px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">S</div>
+          <span class="navbar-brand-gradient">SmartQA</span>
+        </div>
+        <h1 style="font-size:28px;line-height:1.25;font-weight:800;color:#0f172a;margin-bottom:8px;">企业级 AI 客服质检闭环</h1>
+        <p style="color:#64748b;font-size:14px;line-height:1.8;max-width:680px;">
+          客户咨询进入系统后，经过 Dify 多 Agent 工作流、Supabase 落库、五维质检、风险拦截、人工接管和知识盲区沉淀，形成可联调、可复盘、可持续运营的企业闭环。
+        </p>
+      </div>
+      <div id="health-card" style="min-width:260px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;box-shadow:var(--card-shadow);">
+        <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;">系统状态</div>
+        <div style="font-size:13px;color:#94a3b8;">加载中...</div>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:18px;margin-bottom:22px;">
+      <div class="entry-section public-entry">
+        <div class="entry-section-title">
+          <span class="entry-eyebrow customer">客户公开入口</span>
+          <strong>客户咨询</strong>
+        </div>
+        <p>客户不进入内部后台。网页客户入口用于公开咨询；企业微信客户通过企业微信会话进入系统。</p>
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px;">
+          <a class="entry-card primary" href="customer.html">
+            <span class="entry-eyebrow customer">网页客户</span>
+            <strong>开始产品咨询</strong>
+            <span>提交公司和联系人后发起建材产品咨询，系统会自动进入 AI 回复、质检和内部复盘链路。</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="entry-section internal-entry">
+        <div class="entry-section-title">
+          <span class="entry-eyebrow">内部人员入口</span>
+          <strong>运营后台</strong>
+        </div>
+        <p>内部人员需要登录后使用。客服、运营、知识库和联调配置属于企业内部能力，不暴露给客户。</p>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px;">
+          <a class="entry-card" href="chat.html" data-internal-link>
+            <span class="entry-eyebrow">客服运营</span>
+            <strong>客服工作台</strong>
+            <span>查看企业微信/网页客户队列，复盘 AI 运行、质检、风险和 Dify 证据链。</span>
+          </a>
+          <a class="entry-card" href="dashboard.html" data-internal-link>
+            <span class="entry-eyebrow">质量运营</span>
+            <strong>质检看板</strong>
+            <span>查看自动发送率、转人工率、Dify 失败、低分案例和知识盲区处理进度。</span>
+          </a>
+          <a class="entry-card" href="knowledge.html" data-internal-link>
+            <span class="entry-eyebrow">知识运营</span>
+            <strong>知识库维护</strong>
+            <span>维护产品知识，处理知识盲区，并同步到 Dify Dataset。</span>
+          </a>
+          <a class="entry-card" href="monitor.html" data-internal-link>
+            <span class="entry-eyebrow">运行保障</span>
+            <strong>运行监控</strong>
+            <span>查看 AI 失败、消息投递、知识同步和待人工积压，及时处理异常。</span>
+          </a>
+          <a class="entry-card" href="audit.html" data-internal-link>
+            <span class="entry-eyebrow">合规追踪</span>
+            <strong>审计日志</strong>
+            <span>追踪人工接管、知识变更、同步重试和企业微信投递等关键动作。</span>
+          </a>
+          <a class="entry-card" href="wecom.html" data-internal-link>
+            <span class="entry-eyebrow">渠道配置</span>
+            <strong>企业微信自检</strong>
+            <span>检查回调 URL、配置项和本地模拟消息，验证 WeCom Gateway 链路。</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:18px;box-shadow:var(--card-shadow);">
+      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:10px;">落地闭环路径</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
+        <div class="loop-step"><b>1</b><span>客户从网页或企业微信发起咨询</span></div>
+        <div class="loop-step"><b>2</b><span>Dify 多 Agent 生成回复和质检决策</span></div>
+        <div class="loop-step"><b>3</b><span>内部人员登录后台查看 AI 运行证据</span></div>
+        <div class="loop-step"><b>4</b><span>看板复盘风险和低分案例</span></div>
+        <div class="loop-step"><b>5</b><span>知识盲区沉淀并同步 Dify</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      loadHealth();
+      bindInternalLinks();
+    });
+
+    async function loadHealth() {
+      const card = document.getElementById('health-card');
+      try {
+        const health = await fetchSystemHealth();
+        const rows = [
+          ['数据层', health.data_backend || '-'],
+          ['AI', health.config && health.config.mock_ai_enabled ? 'Mock AI' : 'Dify Workflow'],
+          ['企业微信', health.config && health.config.wecom_enabled ? '已配置' : '未配置'],
+          ['内部认证', health.config && health.config.internal_auth_required ? '已开启' : '未开启']
+        ];
+        card.innerHTML = `
+          <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;">系统状态</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${rows.map(([label, value]) => `
+              <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;">
+                <span style="color:#94a3b8;">${label}</span>
+                <span style="color:#334155;font-weight:600;">${value}</span>
+              </div>`).join('')}
+          </div>`;
+      } catch (e) {
+        card.innerHTML = '<div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:10px;">系统状态</div><div style="color:#dc2626;font-size:13px;">后端未连接</div>';
+      }
+    }
+
+    function bindInternalLinks() {
+      document.querySelectorAll('[data-internal-link]').forEach(link => {
+        link.addEventListener('click', async function(event) {
+          event.preventDefault();
+          const next = this.getAttribute('href');
+          const session = await fetchAuthSession().catch(() => ({ required: true, authenticated: false }));
+          if (session.required && !session.authenticated) {
+            location.href = `login.html?next=${encodeURIComponent(next)}`;
+            return;
+          }
+          location.href = next;
+        });
+      });
+    }
+  </script>
+</body>
+</html>
