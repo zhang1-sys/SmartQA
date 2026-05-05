@@ -5,6 +5,7 @@ from typing import Any
 from dify_client import run_workflow
 from services.business_fact_service import BusinessFactService
 from services.customer_memory_service import CustomerMemoryService
+from services.knowledge_retrieval_service import KnowledgeRetrievalService
 
 
 class AIOrchestrationService:
@@ -42,12 +43,17 @@ class AIOrchestrationService:
         if fact_result:
             result = fact_result
         else:
+            retrieval = KnowledgeRetrievalService(self.repository).retrieve(message)
+            input_payload["knowledge_context"] = retrieval.get("context", "")
+            input_payload["knowledge_sources"] = retrieval.get("sources", [])
             try:
                 result = run_workflow(
                     message=message,
                     conversation_id=str(conversation_id),
                     conversation_history=history,
                     customer_profile=enriched_customer_profile,
+                    knowledge_context=retrieval.get("context", ""),
+                    knowledge_sources=retrieval.get("sources", []),
                     dify_conversation_id=dify_conversation_id,
                     channel=channel,
                 )

@@ -33,6 +33,8 @@ def run_workflow(
     conversation_id: str,
     conversation_history: list[dict[str, str]] | None = None,
     customer_profile: dict[str, Any] | None = None,
+    knowledge_context: str = "",
+    knowledge_sources: list[dict[str, Any]] | None = None,
     dify_conversation_id: str | None = None,
     channel: str = "internal",
 ) -> dict[str, Any]:
@@ -49,6 +51,9 @@ def run_workflow(
             "customer_message": message,
             "conversation_history": json.dumps(conversation_history or [], ensure_ascii=False),
             "customer_profile": json.dumps(customer_profile or {}, ensure_ascii=False),
+            "knowledge_context": knowledge_context or "",
+            "knowledge_sources": json.dumps(knowledge_sources or [], ensure_ascii=False),
+            "knowledge_hit": "true" if knowledge_sources else "false",
         },
         "query": message,
         "user": DIFY_USER,
@@ -66,6 +71,19 @@ def run_workflow(
     response.raise_for_status()
     data = response.json()
     parsed = _parse_structured_answer(data.get("answer", ""))
+    if knowledge_sources:
+        knowledge = parsed.setdefault("knowledge", {"hit": True, "sources": [], "gap_question": None})
+        existing_sources = knowledge.get("sources") if isinstance(knowledge, dict) else []
+        if not isinstance(existing_sources, list):
+            existing_sources = []
+        known_titles = {str(source.get("title") or "") for source in existing_sources if isinstance(source, dict)}
+        merged_sources = existing_sources + [
+            source for source in knowledge_sources
+            if isinstance(source, dict) and str(source.get("title") or "") not in known_titles
+        ]
+        knowledge["hit"] = bool(merged_sources) or bool(knowledge.get("hit"))
+        knowledge["sources"] = merged_sources[:8]
+        knowledge.setdefault("gap_question", None)
     parsed["dify_conversation_id"] = data.get("conversation_id")
     parsed["dify_message_id"] = data.get("message_id")
     parsed["raw_dify_response"] = data
@@ -269,6 +287,10 @@ def _complaint_or_after_sales_risk(message: str, intent: dict[str, Any], qa: dic
     return ("投诉" in question_type and "负面" in sentiment) or qa.get("risk_level") == "high"
 
 
+def _safe_handoff_answer() -> str:
+    return "非常抱歉给您带来不便，这类售后问题需要人工同事马上核实处理。请您先提供订单号、到货时间、破损照片或视频、破损数量和签收凭证，我会为您转人工跟进。"
+
+
 def _build_knowledge_gap(message: str, intent: dict[str, Any], priority: str = "medium") -> dict[str, Any]:
     return {
         "question": message,
@@ -309,9 +331,10 @@ def _ensure_contract(data: dict[str, Any], original_message: str) -> dict[str, A
     if _complaint_or_after_sales_risk(original_message, intent, qa):
         action = "handoff"
         qa["risk_level"] = "high"
+        knowledge_gap = None
+        answer = _safe_handoff_answer()
         decision["reason"] = decision.get("reason") or "投诉、破损、退款、赔偿等高风险售后场景，必须转人工处理。"
-
-    if not knowledge_gap and _requires_conservative_gap(original_message, answer, knowledge, qa, action):
+    elif not knowledge_gap and _requires_conservative_gap(original_message, answer, knowledge, qa, action):
         knowledge_gap = _build_knowledge_gap(
             original_message,
             intent,
