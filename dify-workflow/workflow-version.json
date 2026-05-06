@@ -1,11 +1,30 @@
 {
   "name": "SmartQA 建材企业客服多 Agent 工作流",
-  "current_version": "2026.05.06-kr-mode-fix",
+  "current_version": "2026.05.06-cm-var-fix",
   "status": "active",
   "owner": "SmartQA",
   "dify_app_url": "http://localhost:8080/app/13f90896-29a3-4c35-9c0d-b20e886c38d2/workflow",
   "contract_file": "dify-workflow/FINAL_WORKFLOW_SPEC.md",
   "versions": [
+    {
+      "version": "2026.05.06-cm-var-fix",
+      "date": "2026-05-06",
+      "summary": "Fixed Dify Cloud prompt variables: replaced sys.query with Start.customer_message in all LLM prompts so advanced-chat workflow nodes read the authoritative backend customer_message input. Published as cm-var-fix.",
+      "required_outputs": [
+        "intent",
+        "knowledge",
+        "answer",
+        "qa",
+        "decision",
+        "knowledge_gap"
+      ],
+      "acceptance_cases": [
+        "冷补料雨天能施工吗",
+        "聚氨酯发泡胶适合门窗缝隙吗",
+        "货损投诉转人工"
+      ],
+      "rollback_note": "Restore published version 2026.05.06-kr-mode-fix or backup dify-workflow/backups/2026-05-06-kr-mode-fix.published-workflow.json."
+    },
     {
       "version": "2026.05.06-kr-mode-fix",
       "date": "2026-05-06",
