@@ -106,7 +106,28 @@ class KnowledgeRetrievalService:
             score += 1
         if item.get("lifecycle_status") == "active":
             score += 1
+        score += self._domain_boost(item, query)
         return score
+
+    def _domain_boost(self, item: dict[str, Any], query: str) -> int:
+        """Small business-specific boosts for ambiguous product families."""
+        text = self._search_text(item)
+        title = str(item.get("title") or "")
+        boost = 0
+        if "冷补料" in query and "冷补料" in text:
+            boost += 8
+            if any(keyword in query for keyword in ["冬天", "冬季", "低温", "冷天", "气温低"]):
+                if any(keyword in text for keyword in ["冬季", "低温", "回温", "冰雪"]):
+                    boost += 18
+                if any(keyword in title for keyword in ["冬季", "低温"]):
+                    boost += 18
+            if any(keyword in query for keyword in ["雨天", "小雨", "潮湿", "积水", "雨后"]):
+                if any(keyword in text for keyword in ["雨", "潮湿", "抗水", "积水"]):
+                    boost += 18
+            if any(keyword in query for keyword in ["重载", "厂区", "物流园", "公交", "深坑"]):
+                if any(keyword in text for keyword in ["重载", "厂区", "物流园", "分层"]):
+                    boost += 18
+        return boost
 
     def _needs_exact_custom_policy_match(self, query: str) -> bool:
         return any(keyword in query for keyword in ["特殊", "定制", "非标"]) and any(

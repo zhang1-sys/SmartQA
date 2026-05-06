@@ -170,31 +170,45 @@ class AIOrchestrationService:
         }
 
     def _handoff_fallback_result(self, message: str, error: str) -> dict[str, Any]:
+        high_risk = self._is_high_risk_message(message)
         return {
             "intent": {
-                "question_type": "未知",
+                "question_type": "售后支持" if high_risk else "未知",
                 "customer_type": "未知",
                 "urgency": "高",
-                "sentiment": "中性",
+                "sentiment": "负面" if high_risk else "中性",
                 "entities": [],
             },
             "knowledge": {"hit": False, "sources": [], "gap_question": message},
-            "answer": "AI 工作流暂时不可用，已转人工处理。",
+            "answer": (
+                "非常抱歉给您带来影响，这类售后问题需要人工同事马上核实处理。"
+                "请您先保留订单号、到货时间、破损照片或视频、破损数量和签收凭证，我会为您转人工跟进。"
+                if high_risk
+                else "AI 工作流暂时不可用，已转人工处理。"
+            ),
             "qa": {
-                "accuracy": 3,
-                "completeness": 3,
-                "professionalism": 3,
-                "empathy": 3,
-                "efficiency": 3,
-                "overall_score": 3,
+                "accuracy": 4 if high_risk else 3,
+                "completeness": 4 if high_risk else 3,
+                "professionalism": 4 if high_risk else 3,
+                "empathy": 5 if high_risk else 3,
+                "efficiency": 4 if high_risk else 3,
+                "overall_score": 4.2 if high_risk else 3,
                 "passed": False,
-                "risk_level": "medium",
-                "reason": "Dify 工作流调用失败，系统按企业级兜底策略转人工。",
+                "risk_level": "high" if high_risk else "medium",
+                "reason": (
+                    "售后、破损、投诉或退款场景命中高风险规则，系统在 Dify 异常时仍按企业级兜底转人工，避免承诺赔付或退款结果。"
+                    if high_risk
+                    else "Dify 工作流调用失败，系统按企业级兜底策略转人工。"
+                ),
                 "evidence": [{"type": "workflow_error", "message": error[:500]}],
             },
             "decision": {
                 "action": "handoff",
-                "reason": "Dify 工作流调用失败，禁止自动回复并转人工。",
+                "reason": (
+                    "高风险售后/投诉场景必须人工核实，禁止自动承诺处理结果。"
+                    if high_risk
+                    else "Dify 工作流调用失败，禁止自动回复并转人工。"
+                ),
                 "needs_human": True,
             },
             "knowledge_gap": None,
