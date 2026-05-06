@@ -29,6 +29,7 @@ from config import (
     WECOM_TOKEN,
 )
 from customer_access import issue_customer_token, verify_customer_token
+from dify_client import effective_app_mode
 from db import init_db
 from services.ai_orchestration_service import AIOrchestrationService
 from services.alert_service import OperationsAlertService
@@ -766,6 +767,7 @@ def api_system_health():
             "supabase_enabled": SUPABASE_ENABLED,
             "dify_enabled": DIFY_ENABLED,
             "dify_app_mode": DIFY_APP_MODE,
+            "dify_effective_app_mode": effective_app_mode(),
             "mock_ai_enabled": MOCK_AI_ENABLED,
             "wecom_enabled": WECOM_ENABLED,
             "wecom_kf_enabled": WECOM_KF_ENABLED,

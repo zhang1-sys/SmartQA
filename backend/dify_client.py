@@ -19,12 +19,18 @@ _MOCK_RESPONSES = [
     "施工方面建议控制基层平整、干燥、无浮灰；抹面砂浆通常分两遍施工，并配合网格布增强。不同产品配比和开放时间会有差异，建议以产品说明和现场温湿度为准。",
 ]
 
+_RESOLVED_APP_MODE = DIFY_APP_MODE
+
 
 def _headers() -> dict[str, str]:
     return {
         "Authorization": f"Bearer {DIFY_API_KEY}",
         "Content-Type": "application/json",
     }
+
+
+def effective_app_mode() -> str:
+    return _resolved_app_mode()
 
 
 def run_workflow(
@@ -54,11 +60,12 @@ def run_workflow(
         "knowledge_sources": json.dumps(knowledge_sources or [], ensure_ascii=False),
         "knowledge_hit": "true" if knowledge_sources else "false",
     }
-    if DIFY_APP_MODE == "workflow":
+    app_mode = _resolved_app_mode()
+    if app_mode == "workflow":
         data = _run_workflow_endpoint(inputs)
         parsed = _parse_workflow_response(data)
     else:
-        data, parsed = _run_chat_endpoint(inputs, message, dify_conversation_id, allow_workflow_fallback=DIFY_APP_MODE == "auto")
+        data, parsed = _run_chat_endpoint(inputs, message, dify_conversation_id, allow_workflow_fallback=app_mode == "auto")
     if knowledge_sources:
         _merge_knowledge_sources(parsed, knowledge_sources)
     parsed["dify_conversation_id"] = data.get("conversation_id") or data.get("workflow_run_id")
@@ -99,6 +106,7 @@ def _run_chat_endpoint(
             raise
         try:
             data = _run_workflow_endpoint(inputs)
+            _remember_workflow_mode(chat_error)
         except requests.HTTPError as workflow_exc:
             raise RuntimeError(
                 f"Dify chat endpoint failed: {_format_http_error(chat_error)}; "
@@ -106,6 +114,20 @@ def _run_chat_endpoint(
             ) from workflow_exc
         parsed = _parse_workflow_response(data)
     return data, parsed
+
+
+def _resolved_app_mode() -> str:
+    return _RESOLVED_APP_MODE if _RESOLVED_APP_MODE in {"auto", "chat", "workflow"} else "auto"
+
+
+def _remember_workflow_mode(chat_error: requests.HTTPError) -> None:
+    global _RESOLVED_APP_MODE
+    if DIFY_APP_MODE != "auto":
+        return
+    response = chat_error.response
+    body = response.text if response is not None else ""
+    if "not_chat_app" in body or "workflow" in body or "matches the right API route" in body:
+        _RESOLVED_APP_MODE = "workflow"
 
 
 def _run_workflow_endpoint(inputs: dict[str, Any]) -> dict[str, Any]:
