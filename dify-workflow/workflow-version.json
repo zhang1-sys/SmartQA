@@ -1,11 +1,31 @@
 {
   "name": "SmartQA 建材企业客服多 Agent 工作流",
-  "current_version": "2026.05.06-cm-var-fix",
+  "current_version": "2026.05.06-sys-query-fix",
   "status": "active",
   "owner": "SmartQA",
   "dify_app_url": "http://localhost:8080/app/13f90896-29a3-4c35-9c0d-b20e886c38d2/workflow",
   "contract_file": "dify-workflow/FINAL_WORKFLOW_SPEC.md",
   "versions": [
+    {
+      "version": "2026.05.06-sys-query-fix",
+      "date": "2026-05-06",
+      "summary": "Fixed Dify Cloud Chatflow publish validation by keeping sys.query in the 3 LLM node prompts and memory query templates while preserving Start.customer_message as the authoritative backend customer input. Published as sys-query-fix, hash 41aad6c084f3a4abb8a2a7caba13f7b19c691f8c631cd4381dbcd5483d3298aa.",
+      "required_outputs": [
+        "intent",
+        "knowledge",
+        "answer",
+        "qa",
+        "decision",
+        "knowledge_gap"
+      ],
+      "acceptance_cases": [
+        "冷补料雨天能施工吗？",
+        "聚氨酯发泡胶适合门窗缝隙吗？",
+        "货破损了，你们怎么处理？",
+        "你们门店地址和电话是什么？"
+      ],
+      "rollback_note": "Restore published version 2026.05.06-cm-var-fix or backup dify-workflow/backups/2026-05-06-cm-var-fix.draft-workflow.json, then rerun online customer chat smoke tests."
+    },
     {
       "version": "2026.05.06-cm-var-fix",
       "date": "2026-05-06",
