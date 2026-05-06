@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from typing import Any
 
 from config import (
@@ -50,7 +51,10 @@ def handle_plaintext_callback_payload(payload: dict[str, Any], repository) -> No
     sync_customer_service_messages(repository, token=payload.get("token", ""))
 
 
-def sync_customer_service_messages(repository, *, token: str = "", cursor: str = "") -> dict[str, Any]:
+def sync_customer_service_messages(repository, *, token: str = "", cursor: str = "", persist_cursor: bool = True) -> dict[str, Any]:
+    if not cursor and persist_cursor and hasattr(repository, "get_wecom_runtime_state"):
+        state = repository.get_wecom_runtime_state("kf_sync_cursor") or {}
+        cursor = str(state.get("state_value") or "")
     sync_result = wecom_client.sync_customer_service_messages(
         cursor=cursor,
         token=token,
@@ -58,6 +62,8 @@ def sync_customer_service_messages(repository, *, token: str = "", cursor: str =
     )
     _log_sync(repository, {"token": bool(token), "cursor": cursor}, sync_result, error=None)
     _process_synced_messages(sync_result.get("msg_list", []), repository)
+    if persist_cursor:
+        _persist_sync_cursor(repository, sync_result, cursor)
     return sync_result
 
 
@@ -523,5 +529,24 @@ def _log_sync(repository, callback_payload: dict[str, Any], sync_result: dict[st
             "next_cursor": sync_result.get("next_cursor") if sync_result else None,
             "has_more": sync_result.get("has_more") if sync_result else None,
             "error": error,
+        },
+    )
+
+
+def _persist_sync_cursor(repository, sync_result: dict[str, Any], previous_cursor: str = "") -> None:
+    if not hasattr(repository, "upsert_wecom_runtime_state"):
+        return
+    next_cursor = sync_result.get("next_cursor") or previous_cursor
+    if not next_cursor:
+        return
+    repository.upsert_wecom_runtime_state(
+        "kf_sync_cursor",
+        str(next_cursor),
+        {
+            "msg_count": len(sync_result.get("msg_list", [])),
+            "has_more": bool(sync_result.get("has_more")),
+            "previous_cursor_present": bool(previous_cursor),
+            "updated_by": "wecom_kf.sync_msg",
+            "last_success_at": datetime.now(timezone.utc).isoformat(),
         },
     )

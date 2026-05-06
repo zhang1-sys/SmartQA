@@ -288,6 +288,68 @@ class SupabaseRepository:
             payload["delivered_at"] = datetime.now(timezone.utc).isoformat()
         self.client.update("messages", {"id": f"eq.{message_id}"}, payload)
 
+    def get_message(self, message_id: str) -> dict[str, Any] | None:
+        try:
+            rows = self.client.select(
+                "messages",
+                {"id": f"eq.{message_id}", "select": "*", "limit": "1"},
+            )
+        except Exception:
+            return None
+        return rows[0] if rows else None
+
+    def list_failed_deliveries(self, limit: int = 20) -> list[dict[str, Any]]:
+        return self.client.select(
+            "messages",
+            {
+                "select": "id,conversation_id,role,direction,channel,content,delivery_status,delivery_error,created_at,raw_payload",
+                "direction": "eq.outbound",
+                "delivery_status": "eq.failed",
+                "order": "created_at.desc",
+                "limit": str(max(1, min(limit, 100))),
+            },
+        )
+
+    def get_wecom_runtime_state(self, state_key: str) -> dict[str, Any] | None:
+        try:
+            rows = self.client.select(
+                "wecom_runtime_state",
+                {"state_key": f"eq.{state_key}", "select": "*", "limit": "1"},
+            )
+        except Exception:
+            return None
+        return rows[0] if rows else None
+
+    def upsert_wecom_runtime_state(
+        self,
+        state_key: str,
+        state_value: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            rows = self.client.upsert(
+                "wecom_runtime_state",
+                {
+                    "state_key": state_key,
+                    "state_value": state_value,
+                    "metadata": metadata or {},
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                on_conflict="state_key",
+            )
+        except Exception:
+            return {}
+        return rows[0] if rows else {}
+
+    def list_wecom_runtime_state(self) -> list[dict[str, Any]]:
+        try:
+            return self.client.select(
+                "wecom_runtime_state",
+                {"select": "*", "order": "updated_at.desc", "limit": "50"},
+            )
+        except Exception:
+            return []
+
     def add_audit_log(
         self,
         *,
@@ -575,7 +637,7 @@ class SupabaseRepository:
         messages = self.client.select(
             "messages",
             {
-                "select": "id,conversation_id,role,direction,channel,delivery_status,created_at",
+                "select": "id,conversation_id,role,direction,channel,delivery_status,delivery_error,created_at,raw_payload",
                 "order": "created_at.desc",
                 "limit": "300",
             },
@@ -613,6 +675,7 @@ class SupabaseRepository:
             },
         )
         recent_audit = self.list_audit_logs(limit=20)
+        wecom_runtime = self.list_wecom_runtime_state()
 
         resolution_keys = self._active_operation_resolution_keys()
         failed_ai_runs = [
@@ -648,6 +711,10 @@ class SupabaseRepository:
             alerts.append({"level": "critical", "title": "外发消息投递失败", "count": len(failed_deliveries), "hint": "检查企业微信 access_token、客服账号和客户会话是否仍可回复。"})
         if failed_sync_jobs or failed_sync_items:
             alerts.append({"level": "warning", "title": "知识库同步失败", "count": max(len(failed_sync_jobs), len(failed_sync_items)), "hint": "在知识库页面或监控页执行重试，并查看 Dify Dataset API 返回。"})
+        kf_poller_state = next((item for item in wecom_runtime if item.get("state_key") == "kf_poller"), None)
+        kf_failures = int(((kf_poller_state or {}).get("metadata") or {}).get("consecutive_failures") or 0)
+        if kf_failures:
+            alerts.append({"level": "warning", "title": "WeCom KF poller sync failed", "count": kf_failures, "hint": "Check WeCom rate limits, trusted IP, access token, and wecom_runtime.kf_poller last_error."})
         if needs_human:
             alerts.append({"level": "warning", "title": "存在待人工会话", "count": len(needs_human), "hint": "内部客服需要及时接管，避免客户长时间等待。"})
         if high_open_gaps:
@@ -675,6 +742,7 @@ class SupabaseRepository:
             "failed_sync_items": failed_sync_items[:10],
             "pending_sync_items": pending_sync_items[:10],
             "high_open_gaps": high_open_gaps[:10],
+            "wecom_runtime": wecom_runtime,
             "recent_audit": recent_audit,
         }
 

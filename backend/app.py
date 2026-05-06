@@ -37,6 +37,7 @@ from services.data_governance import mask_json
 from services.knowledge_quality_service import KnowledgeQualityService
 from services.knowledge_ops_service import KnowledgeOpsService
 from services.knowledge_base import knowledge_base
+from services.message_delivery_service import MessageDeliveryService
 from services.repository import get_repository
 from supabase_client import supabase
 from wecom_client import wecom_client
@@ -863,6 +864,7 @@ def api_wecom_kf_sync():
         "msg_count": len(result.get("msg_list", [])),
         "has_more": bool(result.get("has_more")),
         "next_cursor": result.get("next_cursor") or "",
+        "persisted_cursor": (repo.get_wecom_runtime_state("kf_sync_cursor") or {}).get("state_value") if hasattr(repo, "get_wecom_runtime_state") else "",
         "new_conversation_count": new_count,
         "recent_wecom_kf_conversations": recent_wecom_kf,
     }
@@ -875,6 +877,22 @@ def api_wecom_kf_sync():
             metadata=response,
         )
     return jsonify(response)
+
+
+@app.route("/api/messages/<message_id>/delivery/retry", methods=["POST"])
+def api_retry_message_delivery(message_id):
+    repo = get_repository()
+    result = MessageDeliveryService(repo).retry_failed_delivery(message_id)
+    return jsonify(result), 200 if result.get("ok") else 400
+
+
+@app.route("/api/messages/delivery/retry-failed", methods=["POST"])
+def api_retry_failed_message_deliveries():
+    data = request.get_json(silent=True) or {}
+    limit = int(data.get("limit") or 10)
+    repo = get_repository()
+    result = MessageDeliveryService(repo).retry_failed_deliveries(limit=limit)
+    return jsonify(result), 200 if result.get("ok") else 400
 
 
 @app.route("/api/wecom/status", methods=["GET"])

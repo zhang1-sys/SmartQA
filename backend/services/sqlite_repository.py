@@ -87,6 +87,31 @@ class SQLiteRepository:
     ) -> None:
         return None
 
+    def get_message(self, message_id: str | int) -> dict[str, Any] | None:
+        return None
+
+    def list_failed_deliveries(self, limit: int = 20) -> list[dict[str, Any]]:
+        return []
+
+    def get_wecom_runtime_state(self, state_key: str) -> dict[str, Any] | None:
+        return None
+
+    def upsert_wecom_runtime_state(
+        self,
+        state_key: str,
+        state_value: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "state_key": state_key,
+            "state_value": state_value,
+            "metadata": metadata or {},
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+
+    def list_wecom_runtime_state(self) -> list[dict[str, Any]]:
+        return []
+
     def add_audit_log(
         self,
         *,
@@ -363,6 +388,7 @@ class SQLiteRepository:
             "failed_sync_items": [],
             "pending_sync_items": [],
             "high_open_gaps": [],
+            "wecom_runtime": [],
             "recent_audit": [],
         }
 

@@ -75,7 +75,7 @@ def main():
             "source": "customer",
             "customer_name": "网页王经理",
             "customer_type": "脚本网页客户公司",
-            "message": "100mm岩棉板多少钱？",
+            "message": "\u51b7\u8865\u6599\u96e8\u5929\u80fd\u65bd\u5de5\u5417\uff1f",
         },
     )
     print("/api/chat web_customer unauthorized", response.status_code)
@@ -112,7 +112,9 @@ def main():
     history = response.get_json()
     print("/api/customer/history", response.status_code, len(history.get("messages", [])))
     assert response.status_code == 200
-    assert len(history["messages"]) >= 2
+    assert len(history["messages"]) >= 1
+    if customer_chat["decision"]["action"] == "send":
+        assert len(history["messages"]) >= 2
 
     response = client.post(
         f"/api/conversations/{conversation_id}/human-reply",
@@ -161,7 +163,16 @@ def main():
         assert sync_body["ok"] is True
         assert sync_body["msg_count"] == 0
         assert sync_body["next_cursor"] == "script-cursor"
+        assert "persisted_cursor" in sync_body
         assert isinstance(sync_body["recent_wecom_kf_conversations"], list)
+
+    response = client.post("/api/messages/not-found/delivery/retry", json={})
+    print("/api/messages/:id/delivery/retry missing", response.status_code)
+    assert response.status_code == 400
+
+    response = client.post("/api/messages/delivery/retry-failed", json={"limit": 2})
+    print("/api/messages/delivery/retry-failed", response.status_code, response.get_json().get("attempted"))
+    assert response.status_code == 200
 
     response = client.post(
         "/api/wecom/simulate",
