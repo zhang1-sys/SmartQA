@@ -58,6 +58,10 @@ class AIOrchestrationService:
                     dify_conversation_id=dify_conversation_id,
                     channel=channel,
                 )
+                guarded_result = self._guard_low_quality_dify_result(message, result, retrieval)
+                if guarded_result is not result:
+                    workflow_error = "Dify quality guard: invalid-input answer for meaningful customer message"
+                    result = guarded_result
             except Exception as exc:
                 workflow_error = str(exc)
                 result = self._fallback_result(message, workflow_error, retrieval)
@@ -125,6 +129,29 @@ class AIOrchestrationService:
         if retrieval.get("hit") and retrieval.get("sources"):
             return self._knowledge_fallback_result(message, error, retrieval)
         return self._handoff_fallback_result(message, error)
+
+    def _guard_low_quality_dify_result(self, message: str, result: dict[str, Any], retrieval: dict[str, Any]) -> dict[str, Any]:
+        if not self._looks_like_meaningful_chinese(message):
+            return result
+        answer = str(result.get("answer") or "")
+        if not self._looks_like_invalid_input_answer(answer):
+            return result
+        if retrieval.get("hit") and retrieval.get("sources"):
+            fallback = self._knowledge_fallback_result(
+                message,
+                "Dify returned an invalid-input/garbled-text answer for a meaningful Chinese customer message",
+                retrieval,
+            )
+            fallback["raw_dify_response"] = {
+                "source": "quality_guard_supabase_retrieval_fallback",
+                "guard_reason": "dify_invalid_input_answer",
+                "dify_result": result,
+            }
+            fallback["dify_conversation_id"] = result.get("dify_conversation_id")
+            fallback["dify_message_id"] = result.get("dify_message_id")
+            fallback["latency_ms"] = result.get("latency_ms")
+            return fallback
+        return result
 
     def _knowledge_fallback_result(self, message: str, error: str, retrieval: dict[str, Any]) -> dict[str, Any]:
         sources = retrieval.get("sources") or []
@@ -279,6 +306,28 @@ class AIOrchestrationService:
                 "工商",
                 "举报",
                 "差评",
+            ]
+        )
+
+    def _looks_like_meaningful_chinese(self, message: str) -> bool:
+        cjk_chars = re.findall(r"[\u4e00-\u9fff]", message or "")
+        if len(cjk_chars) < 2:
+            return False
+        noisy_chars = re.findall(r"[?？!！@#$%^&*_=+~`|\\/<>{}\[\]]", message or "")
+        return len(noisy_chars) <= max(3, len(cjk_chars) // 2)
+
+    def _looks_like_invalid_input_answer(self, answer: str) -> bool:
+        if not answer:
+            return False
+        return any(
+            phrase in answer
+            for phrase in [
+                "乱码",
+                "无法识别您的具体需求",
+                "无法识别具体需求",
+                "请您重新描述",
+                "请重新描述您的需求",
+                "重新描述一下",
             ]
         )
 
