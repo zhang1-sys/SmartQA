@@ -42,6 +42,7 @@ from wecom_gateway import handle_callback as handle_wecom_callback
 from wecom_gateway import verify_url as verify_wecom_url
 from wecom_kf_gateway import handle_callback as handle_wecom_kf_callback
 from wecom_kf_gateway import handle_simulated_text as handle_wecom_kf_simulated_text
+from wecom_kf_gateway import sync_customer_service_messages
 from wecom_kf_gateway import verify_url as verify_wecom_kf_url
 from wecom_kf_poller import start_wecom_kf_poller
 
@@ -816,6 +817,60 @@ def wecom_kf_callback_receive():
     repo = get_repository()
     body, status = handle_wecom_kf_callback(request.args, request.get_data(as_text=True), repo)
     return body, status
+
+
+@app.route("/api/wecom-kf/sync", methods=["POST"])
+def api_wecom_kf_sync():
+    if not WECOM_KF_ENABLED:
+        return jsonify({"error": "wecom_kf_not_configured"}), 400
+    data = request.get_json(silent=True) or {}
+    cursor = (data.get("cursor") or "").strip()
+    token = (data.get("token") or "").strip()
+    repo = get_repository()
+    before_count = len(repo.list_conversations())
+    try:
+        result = sync_customer_service_messages(repo, token=token, cursor=cursor)
+    except Exception as exc:
+        if hasattr(repo, "add_audit_log"):
+            repo.add_audit_log(
+                actor_type="admin",
+                action="wecom_kf.manual_sync_failed",
+                target_type="conversation",
+                target_id=None,
+                metadata={"cursor_present": bool(cursor), "token_present": bool(token), "error": str(exc)},
+            )
+        return jsonify({"error": "wecom_kf_sync_failed", "detail": str(exc)}), 502
+
+    after_conversations = repo.list_conversations()
+    new_count = max(0, len(after_conversations) - before_count)
+    recent_wecom_kf = [
+        {
+            "id": conversation.get("id"),
+            "session_id": conversation.get("session_id"),
+            "customer_name": conversation.get("customer_name"),
+            "status": conversation.get("status"),
+            "updated_at": conversation.get("updated_at"),
+        }
+        for conversation in after_conversations
+        if conversation.get("channel") == "wecom_kf"
+    ][:10]
+    response = {
+        "ok": True,
+        "msg_count": len(result.get("msg_list", [])),
+        "has_more": bool(result.get("has_more")),
+        "next_cursor": result.get("next_cursor") or "",
+        "new_conversation_count": new_count,
+        "recent_wecom_kf_conversations": recent_wecom_kf,
+    }
+    if hasattr(repo, "add_audit_log"):
+        repo.add_audit_log(
+            actor_type="admin",
+            action="wecom_kf.manual_sync",
+            target_type="conversation",
+            target_id=None,
+            metadata=response,
+        )
+    return jsonify(response)
 
 
 @app.route("/api/wecom/status", methods=["GET"])

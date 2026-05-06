@@ -97,6 +97,19 @@
     </section>
 
     <section class="card-shadow" style="background:#fff;padding:20px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b;">真实微信客服消息同步</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:3px;">从企业微信客服拉取真实客户消息，适合回调漏收、Render 重启或人工联调时补偿同步。</div>
+        </div>
+        <button id="kf-sync-btn" class="btn-brand" onclick="runCustomerServiceSync()">同步真实消息</button>
+      </div>
+      <div id="kf-sync-result" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;color:#64748b;font-size:13px;line-height:1.7;">
+        尚未同步。请先在微信客服里发送一条真实客户消息，再点击同步。
+      </div>
+    </section>
+
+    <section class="card-shadow" style="background:#fff;padding:20px;margin-bottom:16px;">
       <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:14px;">真实联调就绪度</div>
       <div id="readiness-list" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
         <div style="color:#94a3b8;font-size:13px;">加载中...</div>
@@ -206,6 +219,45 @@
         <div style="margin-top:8px;"><button class="btn-secondary" onclick="location.href='chat.html'">查看客服工作台</button></div>
       `;
       showToast('模拟消息已进入完整闭环', 'success');
+    }
+
+    async function runCustomerServiceSync() {
+      const btn = document.getElementById('kf-sync-btn');
+      const panel = document.getElementById('kf-sync-result');
+      btn.disabled = true;
+      btn.textContent = '同步中...';
+      panel.textContent = '正在调用企业微信 kf/sync_msg，并写入 Supabase...';
+      try {
+        const result = await syncWeComCustomerService({});
+        if (result.error) {
+          panel.innerHTML = `<span style="color:#dc2626;">同步失败：${escapeHtml(result.detail || result.error)}</span>`;
+          showToast('微信客服同步失败', 'error');
+          return;
+        }
+        const conversations = result.recent_wecom_kf_conversations || [];
+        panel.innerHTML = `
+          <div><strong>拉取消息：</strong>${Number(result.msg_count || 0)} 条 · <strong>新会话：</strong>${Number(result.new_conversation_count || 0)} 个</div>
+          <div><strong>后续游标：</strong>${escapeHtml(result.next_cursor || '-')} ${result.has_more ? '<span class="status-badge status-active">还有更多</span>' : ''}</div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
+            ${conversations.length ? conversations.map(conv => `
+              <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#fff;display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                <div style="min-width:0;">
+                  <div style="font-weight:700;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(conv.customer_name || conv.session_id || conv.id)}</div>
+                  <div style="font-size:12px;color:#94a3b8;">${escapeHtml(conv.status || '-')} · ${escapeHtml(conv.updated_at || '-')}</div>
+                </div>
+                <button class="btn-secondary" onclick="location.href='chat.html'">去回复</button>
+              </div>
+            `).join('') : '<div style="color:#94a3b8;">暂未拉到新的真实微信客服会话。请确认客户已经从微信客服入口发过消息。</div>'}
+          </div>
+        `;
+        showToast('微信客服同步完成', 'success');
+      } catch (e) {
+        panel.innerHTML = '<span style="color:#dc2626;">同步请求失败，请查看运行监控或稍后重试。</span>';
+        showToast('微信客服同步请求失败', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '同步真实消息';
+      }
     }
 
     function copyCallbackUrl() {

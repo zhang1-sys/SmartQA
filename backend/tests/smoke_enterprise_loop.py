@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import os
 import uuid
+from unittest.mock import patch
 
 os.environ.setdefault("INTERNAL_AUTH_REQUIRED", "false")
 os.environ["WECOM_KF_POLL_ENABLED"] = "false"
@@ -139,6 +140,28 @@ def main():
     assert wecom_status["callback_url"].endswith("/wecom/callback")
     assert wecom_status["readiness"]["callback_path"] == "/wecom/callback"
     assert wecom_status["readiness"]["text_message_supported"] is True
+
+    with patch("app.WECOM_KF_ENABLED", False):
+        response = client.post("/api/wecom-kf/sync", json={})
+        print("/api/wecom-kf/sync disabled", response.status_code)
+        assert response.status_code == 400
+
+    with patch("app.WECOM_KF_ENABLED", True), patch("app.sync_customer_service_messages") as sync_mock:
+        sync_mock.return_value = {
+            "errcode": 0,
+            "errmsg": "ok",
+            "msg_list": [],
+            "next_cursor": "script-cursor",
+            "has_more": False,
+        }
+        response = client.post("/api/wecom-kf/sync", json={})
+        sync_body = response.get_json()
+        print("/api/wecom-kf/sync", response.status_code, sync_body.get("msg_count"))
+        assert response.status_code == 200
+        assert sync_body["ok"] is True
+        assert sync_body["msg_count"] == 0
+        assert sync_body["next_cursor"] == "script-cursor"
+        assert isinstance(sync_body["recent_wecom_kf_conversations"], list)
 
     response = client.post(
         "/api/wecom/simulate",

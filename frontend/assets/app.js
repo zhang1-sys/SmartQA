@@ -129,6 +129,15 @@ async function simulateWeComMessage(payload) {
   return res.json();
 }
 
+async function syncWeComCustomerService(payload) {
+  const res = await apiFetch(`${API_BASE}/wecom-kf/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {})
+  });
+  return res.json();
+}
+
 async function fetchDashboard() {
   const res = await apiFetch(`${API_BASE}/dashboard`);
   return res.json();
