@@ -1,0 +1,461 @@
+{
+  "id": "55b9a65b-1ef2-43ec-b2a3-55554890f176",
+  "graph": {
+    "nodes": [
+      {
+        "id": "1777988379133",
+        "type": "custom",
+        "data": {
+          "variables": [
+            {
+              "label": "channel",
+              "variable": "channel",
+              "type": "text-input",
+              "required": false,
+              "max_length": 128
+            },
+            {
+              "label": "conversation_id",
+              "variable": "conversation_id",
+              "type": "text-input",
+              "required": false,
+              "max_length": 256
+            },
+            {
+              "label": "customer_message",
+              "variable": "customer_message",
+              "type": "paragraph",
+              "required": false,
+              "max_length": 4000
+            },
+            {
+              "label": "conversation_history",
+              "variable": "conversation_history",
+              "type": "paragraph",
+              "required": false,
+              "max_length": 12000
+            },
+            {
+              "label": "customer_profile",
+              "variable": "customer_profile",
+              "type": "paragraph",
+              "required": false,
+              "max_length": 8000
+            },
+            {
+              "label": "knowledge_context",
+              "variable": "knowledge_context",
+              "type": "paragraph",
+              "required": false,
+              "max_length": 20000
+            },
+            {
+              "label": "knowledge_sources",
+              "variable": "knowledge_sources",
+              "type": "paragraph",
+              "required": false,
+              "max_length": 12000
+            },
+            {
+              "label": "knowledge_hit",
+              "variable": "knowledge_hit",
+              "type": "text-input",
+              "required": false,
+              "max_length": 16
+            }
+          ],
+          "type": "start",
+          "title": "SmartQA 输入",
+          "selected": false
+        },
+        "position": {
+          "x": 80,
+          "y": 230
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 80,
+          "y": 230
+        },
+        "width": 242,
+        "height": 289
+      },
+      {
+        "id": "triage_agent",
+        "type": "custom",
+        "position": {
+          "x": 760,
+          "y": 220
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 760,
+          "y": 220
+        },
+        "width": 241,
+        "height": 86,
+        "data": {
+          "type": "llm",
+          "title": "Triage Agent 意图+风险+知识判断",
+          "selected": false,
+          "model": {
+            "provider": "langgenius/tongyi/tongyi",
+            "name": "qwen3.5-flash",
+            "mode": "chat",
+            "completion_params": {
+              "temperature": 0.05
+            }
+          },
+          "prompt_template": [
+            {
+              "role": "system",
+              "text": "你是 SmartQA Triage Agent。只输出 JSON，不要 Markdown。\n\n客户问题原文：{{#sys.query#}}\n后端知识命中：{{#1777988379133.knowledge_hit#}}\n历史对话：{{#1777988379133.conversation_history#}}\n客户画像：{{#1777988379133.customer_profile#}}\nDify知识库检索结果：\n{{#knowledge_retrieval.result#}}\n\n后端Supabase检索结果：\n{{#1777988379133.knowledge_context#}}\n\n知识命中判断：后端Supabase检索结果或Dify知识库检索结果中，任一包含与客户问题直接相关的产品、政策、门店、联系人、物流、售后或施工知识，即可视为 knowledge.hit=true；两者都为空或明显无关，才视为 knowledge.hit=false。\n\n必须按原文关键词硬判断：\nA. 只要客户问题包含任一词：投诉、破损、破了、坏了、漏水、退货、退款、赔偿、赔付、不处理、威胁、工商、举报、差评，必须输出 risk_level=high、must_handoff=true、recommend_action=handoff。\nB. 如果两个知识来源都没有相关依据，并且问题涉及价格、报价、多少钱、库存、交期、运费、上楼费、发票、对公账户、退款、赔偿、政策、承诺、资质、特殊、定制，必须 recommend_action=no_answer，不能 send。\nC. 常规产品参数、施工建议、适用场景，且任一知识来源命中，才可以 recommend_action=send。\n\n输出 JSON：{\"intent\":{\"question_type\":\"售前咨询|售后支持|技术问题|投诉|闲聊|未知\",\"customer_type\":\"施工方|经销商|甲方|散户|未知\",\"urgency\":\"高|中|低\",\"sentiment\":\"正面|中性|负面\",\"entities\":[]},\"risk\":{\"risk_level\":\"low|medium|high\",\"risk_flags\":[],\"must_handoff\":false,\"reason\":\"\"},\"knowledge\":{\"hit\":true,\"gap_question\":null,\"coverage_reason\":\"\"},\"recommend_action\":\"send|handoff|no_answer\"}",
+              "id": "triage_agent-system"
+            }
+          ],
+          "context": {
+            "enabled": false,
+            "variable_selector": []
+          },
+          "vision": {
+            "enabled": false
+          },
+          "memory": {
+            "window": {
+              "enabled": false,
+              "size": 10
+            },
+            "query_prompt_template": "{{#sys.query#}}",
+            "role_prefix": {
+              "user": "",
+              "assistant": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "response_agent",
+        "type": "custom",
+        "position": {
+          "x": 1110,
+          "y": 220
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 1110,
+          "y": 220
+        },
+        "width": 241,
+        "height": 86,
+        "data": {
+          "type": "llm",
+          "title": "Response Agent 回复生成",
+          "selected": false,
+          "model": {
+            "provider": "langgenius/tongyi/tongyi",
+            "name": "qwen3.5-flash",
+            "mode": "chat",
+            "completion_params": {
+              "temperature": 0.05
+            }
+          },
+          "prompt_template": [
+            {
+              "role": "system",
+              "text": "你是鑫源保温防水防火批发的 Response Agent。只输出可直接发给客户的中文回复文本，不输出 JSON。\n\n客户问题原文：{{#sys.query#}}\nTriage 结果：{{#triage_agent.text#}}\n后端知识命中：{{#1777988379133.knowledge_hit#}}\nDify知识库检索结果：\n{{#knowledge_retrieval.result#}}\n\n后端Supabase检索结果：\n{{#1777988379133.knowledge_context#}}\n\n知识使用规则：优先使用后端Supabase检索结果和Dify知识库检索结果中与问题直接相关的内容；两者冲突时，门店地址、电话、联系人、营业时间以后端强事实为准。\n\n硬规则优先级最高：\n1. 如果原文包含投诉、破损、破了、坏了、漏水、退货、退款、赔偿、赔付、不处理、威胁、工商、举报、差评：必须回复“抱歉给您带来不便，已为您转人工处理”，并请客户提供订单号、到货时间、照片/视频、破损数量；不要承诺赔付或退款结果。\n2. 如果两个知识来源都没有相关依据，且问题涉及价格、报价、库存、交期、运费、政策、特殊定制、资质、承诺：必须说明当前知识库没有足够依据，需要人工核实；不要编造。\n3. 其他知识命中问题，基于知识回答并追问规格、数量、项目地址等关键字段。\n4. 60-160 字，适合微信发送。\n5. 售后/投诉/破损/退款/赔偿场景禁止承诺“负责到底”“一定赔付”“启动理赔”“启动退款”“马上退款”“保证处理结果”；只能表达抱歉、收集凭证、转人工核实。",
+              "id": "response_agent-system"
+            }
+          ],
+          "context": {
+            "enabled": false,
+            "variable_selector": []
+          },
+          "vision": {
+            "enabled": false
+          },
+          "memory": {
+            "window": {
+              "enabled": false,
+              "size": 10
+            },
+            "query_prompt_template": "{{#sys.query#}}",
+            "role_prefix": {
+              "user": "",
+              "assistant": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "governance_agent",
+        "type": "custom",
+        "position": {
+          "x": 1460,
+          "y": 220
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 1460,
+          "y": 220
+        },
+        "width": 241,
+        "height": 86,
+        "data": {
+          "type": "llm",
+          "title": "Governance Agent 质检+决策+JSON",
+          "selected": false,
+          "model": {
+            "provider": "langgenius/tongyi/tongyi",
+            "name": "qwen3.5-flash",
+            "mode": "chat",
+            "completion_params": {
+              "temperature": 0.05
+            }
+          },
+          "prompt_template": [
+            {
+              "role": "system",
+              "text": "你是 SmartQA Governance Agent。必须只输出严格 JSON，不要 Markdown，不要代码块。\n\n客户问题原文：{{#sys.query#}}\n后端知识命中：{{#1777988379133.knowledge_hit#}}\nTriage 结果：{{#triage_agent.text#}}\n后端知识来源：{{#1777988379133.knowledge_sources#}}\nDify知识库检索结果：\n{{#knowledge_retrieval.result#}}\n\n后端Supabase检索结果：\n{{#1777988379133.knowledge_context#}}\n客服回复：{{#response_agent.text#}}\n\n你必须重新按客户问题原文执行硬规则，不得只相信上游：\n1. 原文包含投诉、破损、破了、坏了、漏水、退货、退款、赔偿、赔付、不处理、威胁、工商、举报、差评 => decision.action=handoff，needs_human=true，qa.risk_level=high，knowledge_gap=null。\n2. 只有当后端Supabase检索和Dify知识库检索都没有相关依据，并且原文涉及价格、报价、多少钱、库存、交期、运费、上楼费、发票、对公账户、退款、赔偿、政策、承诺、资质、特殊、定制 => decision.action=no_answer，needs_human=true，生成 knowledge_gap。\n3. qa 任一维度低于 3 => handoff。\n4. 如果客服回复在售后/投诉/破损/退款/赔偿场景承诺“负责到底”“一定赔付”“启动理赔”“启动退款”“马上退款”“保证处理结果”，必须 action=handoff，accuracy<=2，risk_level=high，并把 answer 改写为只道歉、收集凭证、转人工核实。\n4. 只有知识命中、非高风险、回复未编造，才可以 send。\n\n五维评分：accuracy、completeness、professionalism、empathy、efficiency，每项 1-5，overall_score 为平均值。\n\n输出必须是完整 JSON：{\"intent\":{\"question_type\":\"\",\"customer_type\":\"\",\"urgency\":\"\",\"sentiment\":\"\",\"entities\":[]},\"knowledge\":{\"hit\":true,\"sources\":[{\"title\":\"\",\"content\":\"\"}],\"gap_question\":null},\"answer\":\"\",\"qa\":{\"accuracy\":4,\"completeness\":4,\"professionalism\":4,\"empathy\":4,\"efficiency\":4,\"overall_score\":4.0,\"passed\":true,\"risk_level\":\"low|medium|high\",\"reason\":\"\",\"evidence\":[]},\"decision\":{\"action\":\"send|retry|handoff|no_answer\",\"reason\":\"\",\"needs_human\":false},\"knowledge_gap\":null}\n\n如果 action=no_answer，knowledge_gap 必须是：{\"question\":客户问题原文,\"category\":\"知识缺口类别\",\"priority\":\"medium|high\",\"suggested_answer\":\"需要补充的标准答案方向\"}",
+              "id": "governance_agent-system"
+            }
+          ],
+          "context": {
+            "enabled": false,
+            "variable_selector": []
+          },
+          "vision": {
+            "enabled": false
+          },
+          "memory": {
+            "window": {
+              "enabled": false,
+              "size": 10
+            },
+            "query_prompt_template": "{{#sys.query#}}",
+            "role_prefix": {
+              "user": "",
+              "assistant": ""
+            }
+          }
+        }
+      },
+      {
+        "id": "answer",
+        "type": "custom",
+        "data": {
+          "variables": [],
+          "answer": "{{#governance_agent.text#}}",
+          "type": "answer",
+          "title": "直接回复",
+          "selected": false
+        },
+        "position": {
+          "x": 1810,
+          "y": 230
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 1810,
+          "y": 230
+        },
+        "width": 241,
+        "height": 101
+      },
+      {
+        "id": "knowledge_retrieval",
+        "type": "custom",
+        "position": {
+          "x": 410,
+          "y": 220
+        },
+        "targetPosition": "left",
+        "sourcePosition": "right",
+        "positionAbsolute": {
+          "x": 410,
+          "y": 220
+        },
+        "width": 241,
+        "height": 116,
+        "data": {
+          "type": "knowledge-retrieval",
+          "title": "Knowledge Retrieval 知识库检索",
+          "desc": "检索 Dify Cloud SmartQA 企业知识库",
+          "selected": true,
+          "dataset_ids": [
+            "fde21b8b-1133-4f13-a34c-fd0a7e452a62"
+          ],
+          "retrieval_mode": "multiple",
+          "top_k": 5,
+          "multiple_retrieval_config": {
+            "top_k": 5,
+            "score_threshold": 0.35,
+            "reranking_enable": false
+          },
+          "single_retrieval_config": {
+            "model": {
+              "provider": "langgenius/tongyi/tongyi",
+              "name": "qwen3.5-flash",
+              "mode": "chat",
+              "completion_params": {
+                "temperature": 0.05
+              }
+            }
+          },
+          "query_variable_selector": [
+            "1777988379133",
+            "customer_message"
+          ]
+        },
+        "selected": true
+      }
+    ],
+    "edges": [
+      {
+        "id": "1777988379133-knowledge_retrieval",
+        "source": "1777988379133",
+        "sourceHandle": "source",
+        "target": "knowledge_retrieval",
+        "targetHandle": "target",
+        "type": "custom",
+        "data": {
+          "sourceType": "start",
+          "targetType": "knowledge-retrieval"
+        }
+      },
+      {
+        "id": "knowledge_retrieval-triage_agent",
+        "source": "knowledge_retrieval",
+        "sourceHandle": "source",
+        "target": "triage_agent",
+        "targetHandle": "target",
+        "type": "custom",
+        "data": {
+          "sourceType": "knowledge-retrieval",
+          "targetType": "llm"
+        }
+      },
+      {
+        "id": "triage_agent-response_agent",
+        "source": "triage_agent",
+        "sourceHandle": "source",
+        "target": "response_agent",
+        "targetHandle": "target",
+        "type": "custom",
+        "data": {
+          "sourceType": "llm",
+          "targetType": "llm"
+        }
+      },
+      {
+        "id": "response_agent-governance_agent",
+        "source": "response_agent",
+        "sourceHandle": "source",
+        "target": "governance_agent",
+        "targetHandle": "target",
+        "type": "custom",
+        "data": {
+          "sourceType": "llm",
+          "targetType": "llm"
+        }
+      },
+      {
+        "id": "governance_agent-answer",
+        "source": "governance_agent",
+        "sourceHandle": "source",
+        "target": "answer",
+        "targetHandle": "target",
+        "type": "custom",
+        "data": {
+          "sourceType": "llm",
+          "targetType": "answer"
+        }
+      }
+    ],
+    "viewport": {
+      "x": 119.49797077974983,
+      "y": 76.71621421117538,
+      "zoom": 0.32987697769322377
+    }
+  },
+  "features": {
+    "opening_statement": "您好，欢迎咨询鑫源保温防水防火批发。您可以直接发送产品名称、规格、数量和项目地址，我会帮您查询产品参数、配送规则和报价前置条件；最终价格、库存和售后处理由人工同事确认。",
+    "suggested_questions": [],
+    "suggested_questions_after_answer": {
+      "enabled": false
+    },
+    "text_to_speech": {
+      "enabled": false,
+      "language": "",
+      "voice": ""
+    },
+    "speech_to_text": {
+      "enabled": false
+    },
+    "retriever_resource": {
+      "enabled": true
+    },
+    "sensitive_word_avoidance": {
+      "enabled": false
+    },
+    "file_upload": {
+      "image": {
+        "enabled": false,
+        "number_limits": 3,
+        "transfer_methods": [
+          "local_file",
+          "remote_url"
+        ]
+      },
+      "enabled": false,
+      "allowed_file_types": [
+        "image"
+      ],
+      "allowed_file_extensions": [
+        ".JPG",
+        ".JPEG",
+        ".PNG",
+        ".GIF",
+        ".WEBP",
+        ".SVG"
+      ],
+      "allowed_file_upload_methods": [
+        "local_file",
+        "remote_url"
+      ],
+      "number_limits": 3,
+      "fileUploadConfig": {
+        "file_size_limit": 15,
+        "batch_count_limit": 5,
+        "file_upload_limit": 50,
+        "image_file_size_limit": 10,
+        "video_file_size_limit": 100,
+        "audio_file_size_limit": 50,
+        "workflow_file_upload_limit": 10,
+        "image_file_batch_limit": 10,
+        "single_chunk_attachment_limit": 10,
+        "attachment_image_file_size_limit": 2
+      }
+    }
+  },
+  "hash": "20f0a620cb0afa752cdc3ed7a4418936779104a1b794bc220e900a3fbfaf7b40",
+  "version": "2026-05-06 04:20:28.444291",
+  "marked_name": "kr-mode-fix",
+  "marked_comment": "Set Knowledge Retrieval retrieval_mode to multiple for Dify Cloud runtime.",
+  "created_by": {
+    "id": "a18a9d0a-4c1b-445a-b794-a0159739f239",
+    "name": "Zzz",
+    "email": "15022090890@163.com"
+  },
+  "created_at": 1778041228,
+  "updated_by": null,
+  "updated_at": 1778041228,
+  "tool_published": false,
+  "environment_variables": [],
+  "conversation_variables": [],
+  "rag_pipeline_variables": []
+}

@@ -181,7 +181,7 @@ def _process_customer_non_text(message: dict[str, Any], repository) -> dict[str,
             delivery_status = "failed"
             delivery_error = str(exc)
         if hasattr(repository, "update_message_delivery_status"):
-            repository.update_message_delivery_status(message_id, delivery_status)
+            repository.update_message_delivery_status(message_id, delivery_status, delivery_error)
 
     if hasattr(repository, "add_audit_log"):
         repository.add_audit_log(
@@ -276,7 +276,7 @@ def _process_customer_text(message: dict[str, Any], repository) -> dict[str, Any
             delivery_status = "failed"
             delivery_error = str(exc)
         if assistant_message_id and hasattr(repository, "update_message_delivery_status"):
-            repository.update_message_delivery_status(assistant_message_id, delivery_status)
+            repository.update_message_delivery_status(assistant_message_id, delivery_status, delivery_error)
         if hasattr(repository, "add_audit_log"):
             repository.add_audit_log(
                 actor_type="wecom",
@@ -346,7 +346,7 @@ def _send_welcome_if_needed(
         delivery_status = "failed"
         delivery_error = str(exc)
     if hasattr(repository, "update_message_delivery_status"):
-        repository.update_message_delivery_status(message_id, delivery_status)
+        repository.update_message_delivery_status(message_id, delivery_status, delivery_error)
     if hasattr(repository, "add_audit_log"):
         repository.add_audit_log(
             actor_type="wecom",
@@ -401,7 +401,7 @@ def _send_immediate_ack(
         delivery_status = "failed"
         delivery_error = str(exc)
     if hasattr(repository, "update_message_delivery_status"):
-        repository.update_message_delivery_status(message_id, delivery_status)
+        repository.update_message_delivery_status(message_id, delivery_status, delivery_error)
     if hasattr(repository, "add_audit_log"):
         repository.add_audit_log(
             actor_type="wecom",
@@ -456,7 +456,7 @@ def _send_followup_notice(
         delivery_status = "failed"
         delivery_error = str(exc)
     if hasattr(repository, "update_message_delivery_status"):
-        repository.update_message_delivery_status(message_id, delivery_status)
+        repository.update_message_delivery_status(message_id, delivery_status, delivery_error)
     if hasattr(repository, "add_audit_log"):
         repository.add_audit_log(
             actor_type="wecom",

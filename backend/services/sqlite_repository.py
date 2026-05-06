@@ -79,7 +79,12 @@ class SQLiteRepository:
         sqlite_role = "assistant" if role in {"assistant", "human"} else role
         return str(add_message(int(conversation_id), sqlite_role, content))
 
-    def update_message_delivery_status(self, message_id: str | int, delivery_status: str) -> None:
+    def update_message_delivery_status(
+        self,
+        message_id: str | int,
+        delivery_status: str,
+        delivery_error: str | None = None,
+    ) -> None:
         return None
 
     def add_audit_log(

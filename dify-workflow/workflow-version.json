@@ -1,11 +1,30 @@
 {
   "name": "SmartQA 建材企业客服多 Agent 工作流",
-  "current_version": "2026.05.05-enterprise-stable",
+  "current_version": "2026.05.06-kr-mode-fix",
   "status": "active",
   "owner": "SmartQA",
   "dify_app_url": "http://localhost:8080/app/13f90896-29a3-4c35-9c0d-b20e886c38d2/workflow",
   "contract_file": "dify-workflow/FINAL_WORKFLOW_SPEC.md",
   "versions": [
+    {
+      "version": "2026.05.06-kr-mode-fix",
+      "date": "2026-05-06",
+      "summary": "Fixed Dify Cloud Knowledge Retrieval runtime schema: set retrieval_mode to multiple and set single_retrieval_config.model to qwen3.5-flash chat mode. Published as kr-mode-fix, hash 20f0a620cb0afa752cdc3ed7a4418936779104a1b794bc220e900a3fbfaf7b40.",
+      "required_outputs": [
+        "intent",
+        "knowledge",
+        "answer",
+        "qa",
+        "decision",
+        "knowledge_gap"
+      ],
+      "acceptance_cases": [
+        "冷补料冬季咨询",
+        "门店地址强事实",
+        "货损投诉转人工"
+      ],
+      "rollback_note": "Restore the previous published Dify workflow version kr-chat-fix or the last exported DSL, then rerun online customer chat smoke tests."
+    },
     {
       "version": "2026.05.05-enterprise-stable",
       "date": "2026-05-05",

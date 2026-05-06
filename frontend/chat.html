@@ -87,7 +87,7 @@
         </div>
         <div style="display:flex;gap:12px;margin-top:8px;align-items:center;justify-content:space-between;">
           <span style="font-size:12px;color:#94a3b8;" id="system-mode">正在检测系统配置...</span>
-          <span style="font-size:12px;color:#64748b;">人工回复会落库并进入审计链路</span>
+          <span style="font-size:12px;color:#64748b;" id="reply-delivery-status">人工回复会落库、外发并进入审计链路</span>
         </div>
       </div>
     </div>
@@ -530,13 +530,37 @@
 
       const result = await sendHumanReply(currentConvId, msg, true);
       if (result.error) {
-        alert(result.error);
+        setReplyDeliveryStatus(result.error, 'error');
         return;
       }
       input.value = '';
+      setReplyDeliveryStatus(humanReplyDeliveryText(result), result.delivery_status === 'failed' ? 'error' : 'success');
       await loadConversations();
       const conv = conversations.find(c => c.id === currentConvId);
       if (conv) await selectSessionById(conv.session_id);
+    }
+
+    function humanReplyDeliveryText(result) {
+      const channel = channelLabel(result.channel);
+      if (result.delivery_status === 'sent') {
+        return `人工回复已发送到${channel}`;
+      }
+      if (result.delivery_status === 'failed') {
+        return `人工回复已保存，但外发失败：${result.delivery_error || '请到运行监控查看'}`;
+      }
+      if (result.channel === 'wecom' || result.channel === 'wecom_kf') {
+        return result.delivery_target_present
+          ? `人工回复已保存，等待外发确认`
+          : `人工回复已保存，但未找到微信客户标识`;
+      }
+      return '人工回复已保存到会话记录';
+    }
+
+    function setReplyDeliveryStatus(text, type) {
+      const el = document.getElementById('reply-delivery-status');
+      if (!el) return;
+      el.textContent = text;
+      el.style.color = type === 'error' ? '#dc2626' : type === 'success' ? '#16a34a' : '#64748b';
     }
 
     function statusLabel(statusCode, fallback) {

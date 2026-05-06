@@ -105,7 +105,7 @@ def handle_callback(args, body: str, repository) -> tuple[str, int]:
             delivery_status = "failed"
             delivery_error = str(exc)
         if assistant_message_id and hasattr(repository, "update_message_delivery_status"):
-            repository.update_message_delivery_status(assistant_message_id, delivery_status)
+            repository.update_message_delivery_status(assistant_message_id, delivery_status, delivery_error)
         if hasattr(repository, "add_audit_log"):
             repository.add_audit_log(
                 actor_type="wecom",

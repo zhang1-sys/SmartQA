@@ -274,8 +274,19 @@ class SupabaseRepository:
         )
         return rows[0]["id"]
 
-    def update_message_delivery_status(self, message_id: str, delivery_status: str) -> None:
-        self.client.update("messages", {"id": f"eq.{message_id}"}, {"delivery_status": delivery_status})
+    def update_message_delivery_status(
+        self,
+        message_id: str,
+        delivery_status: str,
+        delivery_error: str | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "delivery_status": delivery_status,
+            "delivery_error": delivery_error,
+        }
+        if delivery_status == "sent":
+            payload["delivered_at"] = datetime.now(timezone.utc).isoformat()
+        self.client.update("messages", {"id": f"eq.{message_id}"}, payload)
 
     def add_audit_log(
         self,

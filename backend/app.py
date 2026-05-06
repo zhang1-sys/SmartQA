@@ -240,11 +240,13 @@ def api_conversation_human_reply(conv_id):
     )
     delivery_status = "stored"
     delivery_error = None
+    delivery_target = None
 
     if conv.get("channel") == "wecom" and wecom_client.enabled():
         contact = repo.get_wecom_contact_for_conversation(conv_id) if hasattr(repo, "get_wecom_contact_for_conversation") else None
         external_user_id = (contact or {}).get("external_user_id")
         if external_user_id:
+            delivery_target = external_user_id
             try:
                 wecom_client.send_text(external_user_id, content)
                 delivery_status = "sent"
@@ -252,12 +254,13 @@ def api_conversation_human_reply(conv_id):
                 delivery_status = "failed"
                 delivery_error = str(exc)
             if hasattr(repo, "update_message_delivery_status"):
-                repo.update_message_delivery_status(message_id, delivery_status)
+                repo.update_message_delivery_status(message_id, delivery_status, delivery_error)
     elif conv.get("channel") == "wecom_kf" and wecom_client.customer_service_enabled():
         contact = repo.get_wecom_contact_for_conversation(conv_id) if hasattr(repo, "get_wecom_contact_for_conversation") else None
         external_userid = (contact or {}).get("external_user_id")
         open_kfid = _contact_open_kfid(contact) or _conversation_open_kfid(conv) or WECOM_KF_OPEN_KFID
         if external_userid and open_kfid:
+            delivery_target = external_userid
             try:
                 wecom_client.send_customer_service_text(
                     open_kfid=open_kfid,
@@ -269,7 +272,7 @@ def api_conversation_human_reply(conv_id):
                 delivery_status = "failed"
                 delivery_error = str(exc)
             if hasattr(repo, "update_message_delivery_status"):
-                repo.update_message_delivery_status(message_id, delivery_status)
+                repo.update_message_delivery_status(message_id, delivery_status, delivery_error)
 
     repo.update_conversation_status(conv_id, "resolved" if data.get("resolve", True) else "ai_replied")
     if hasattr(repo, "add_audit_log"):
@@ -280,6 +283,8 @@ def api_conversation_human_reply(conv_id):
             target_id=conv_id,
             metadata={
                 "message_id": message_id,
+                "channel": conv.get("channel", "internal"),
+                "delivery_target_present": bool(delivery_target),
                 "delivery_status": delivery_status,
                 "delivery_error": delivery_error,
             },
@@ -288,6 +293,8 @@ def api_conversation_human_reply(conv_id):
     return jsonify({
         "ok": True,
         "message_id": message_id,
+        "channel": conv.get("channel", "internal"),
+        "delivery_target_present": bool(delivery_target),
         "delivery_status": delivery_status,
         "delivery_error": delivery_error,
     })
