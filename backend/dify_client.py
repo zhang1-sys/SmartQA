@@ -74,6 +74,7 @@ def run_workflow(
         data = response.json()
         parsed = _parse_structured_answer(data.get("answer", ""))
     except requests.HTTPError as exc:
+        chat_error = exc
         if not _should_retry_as_workflow(exc.response):
             raise
         workflow_payload = {
@@ -81,13 +82,19 @@ def run_workflow(
             "user": DIFY_USER,
             "response_mode": "blocking",
         }
-        response = requests.post(
-            f"{DIFY_API_URL}/workflows/run",
-            headers=_headers(),
-            json=workflow_payload,
-            timeout=90,
-        )
-        response.raise_for_status()
+        try:
+            response = requests.post(
+                f"{DIFY_API_URL}/workflows/run",
+                headers=_headers(),
+                json=workflow_payload,
+                timeout=90,
+            )
+            response.raise_for_status()
+        except requests.HTTPError as workflow_exc:
+            raise RuntimeError(
+                f"Dify chat endpoint failed: {_format_http_error(chat_error)}; "
+                f"workflow endpoint failed: {_format_http_error(workflow_exc)}"
+            ) from workflow_exc
         data = response.json()
         parsed = _parse_workflow_response(data)
     if knowledge_sources:
@@ -100,19 +107,17 @@ def run_workflow(
 
 
 def _should_retry_as_workflow(response) -> bool:
-    if response is None or response.status_code not in {400, 404, 405, 422}:
-        return False
-    text = response.text.lower()
-    app_type_markers = [
-        "not a chat app",
-        "completion app",
-        "workflow",
-        "not found",
-        "invalid endpoint",
-        "app mode",
-        "chat-messages",
-    ]
-    return any(marker in text for marker in app_type_markers)
+    return response is not None and response.status_code in {400, 404, 405, 422}
+
+
+def _format_http_error(exc: requests.HTTPError) -> str:
+    response = exc.response
+    if response is None:
+        return str(exc)
+    body = (response.text or "").strip().replace("\n", " ")
+    if len(body) > 500:
+        body = body[:500] + "..."
+    return f"{response.status_code} {response.reason}: {body or str(exc)}"
 
 
 def _parse_workflow_response(data: dict[str, Any]) -> dict[str, Any]:
