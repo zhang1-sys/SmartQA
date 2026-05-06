@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -25,23 +26,35 @@ class DifyImportError(RuntimeError):
 def main() -> int:
     if not DIFY_DATASET_ID or not DIFY_DATASET_API_KEY:
         raise DifyImportError("DIFY_DATASET_ID and DIFY_DATASET_API_KEY are required")
-    docs = sorted(path for path in DOCS_DIR.glob("*.md") if path.name != "manifest.md")
+    docs = sorted(path for path in DOCS_DIR.glob("*.md") if path.name[:2].isdigit())
     if not docs:
         raise DifyImportError(f"No aggregate docs found in {DOCS_DIR}")
 
     existing = _list_existing_documents()
+    desired_names = {_document_name(path) for path in docs}
+    if os.getenv("DIFY_IMPORT_DELETE_STALE", "").strip().lower() in {"1", "true", "yes"}:
+        _delete_stale_documents(existing, desired_names)
+        existing = _list_existing_documents()
+    existing_report = _load_report()
+    retry_failed_only = os.getenv("DIFY_IMPORT_RETRY_FAILED_ONLY", "").strip().lower() in {"1", "true", "yes"}
+    previous_by_file = {row.get("file"): row for row in existing_report if row.get("file")}
     report: list[dict[str, Any]] = []
     for index, path in enumerate(docs, 1):
+        relative_file = str(path.relative_to(PROJECT_ROOT))
+        previous = previous_by_file.get(relative_file)
+        if retry_failed_only and previous and previous.get("ok"):
+            report.append(previous)
+            continue
         name = _document_name(path)
         text = path.read_text(encoding="utf-8")
         document_id = existing.get(name)
         operation = "update" if document_id else "create"
         print(f"[{index}/{len(docs)}] {operation} {name}")
         try:
-            response = _update_document(document_id, name, text) if document_id else _create_document(name, text)
+            response = _update_document_with_retry(document_id, name, text) if document_id else _create_document(name, text)
             report.append(
                 {
-                    "file": str(path.relative_to(PROJECT_ROOT)),
+                    "file": relative_file,
                     "name": name,
                     "operation": operation,
                     "ok": True,
@@ -53,7 +66,7 @@ def main() -> int:
             print(f"  failed: {message}")
             report.append(
                 {
-                    "file": str(path.relative_to(PROJECT_ROOT)),
+                    "file": relative_file,
                     "name": name,
                     "operation": operation,
                     "ok": False,
@@ -61,11 +74,12 @@ def main() -> int:
                 }
             )
             if "rate limit" in message.lower() or "403" in message:
+                _write_report(report)
                 break
+        _write_report(report)
         if index < len(docs):
             time.sleep(15)
 
-    REPORT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     ok_count = sum(1 for row in report if row.get("ok"))
     print({"ok": ok_count, "total_attempted": len(report), "report": str(REPORT_PATH.relative_to(PROJECT_ROOT))})
     return 0 if ok_count == len(docs) else 1
@@ -76,6 +90,20 @@ def _headers() -> dict[str, str]:
         "Authorization": f"Bearer {DIFY_DATASET_API_KEY}",
         "Content-Type": "application/json",
     }
+
+
+def _load_report() -> list[dict[str, Any]]:
+    if not REPORT_PATH.exists():
+        return []
+    try:
+        data = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    return data if isinstance(data, list) else []
+
+
+def _write_report(report: list[dict[str, Any]]) -> None:
+    REPORT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _request(method: str, path: str, **kwargs: Any) -> Any:
@@ -125,6 +153,22 @@ def _create_document(name: str, text: str) -> Any:
     )
 
 
+def _delete_document(document_id: str) -> Any:
+    return _request("DELETE", f"/datasets/{DIFY_DATASET_ID}/documents/{document_id}")
+
+
+def _delete_stale_documents(existing: dict[str, str], desired_names: set[str]) -> None:
+    prefix = "SmartQA 聚合知识 - "
+    for name, document_id in list(existing.items()):
+        if not name.startswith(prefix) or name in desired_names:
+            continue
+        print(f"[cleanup] delete stale {name}")
+        try:
+            _delete_document(document_id)
+        except Exception as exc:
+            print(f"  cleanup failed: {exc}")
+
+
 def _update_document(document_id: str, name: str, text: str) -> Any:
     return _request(
         "POST",
@@ -135,6 +179,21 @@ def _update_document(document_id: str, name: str, text: str) -> Any:
             "process_rule": {"mode": "automatic"},
         },
     )
+
+
+def _update_document_with_retry(document_id: str, name: str, text: str) -> Any:
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        try:
+            return _update_document(document_id, name, text)
+        except DifyImportError as exc:
+            message = str(exc)
+            if "Document is not available" not in message or attempt == attempts:
+                raise
+            wait_seconds = 45 * attempt
+            print(f"  document is still indexing; retrying in {wait_seconds}s")
+            time.sleep(wait_seconds)
+    raise DifyImportError("unreachable retry state")
 
 
 def _document_name(path: Path) -> str:

@@ -10,9 +10,9 @@ Dify Cloud 免费版对知识库文档数、请求频率和索引任务有明显
 
 - `01-store-contacts.md`：门店地址与联系人
 - `02-pricing-logistics-aftersales.md`：报价、物流配送与售后规则
-- `03-insulation-products.md`：保温材料产品知识
-- `04-waterproof-products.md`：防水材料产品知识
-- `05-mortar-adhesive-products.md`：砂浆与粘接材料产品知识
+- `03-insulation-products-part01/02/03.md`：保温材料产品知识
+- `04-waterproof-products-part01/02/03.md`：防水材料产品知识
+- `05-mortar-adhesive-products-part01/02.md`：砂浆与粘接材料产品知识
 - `06-repair-cold-patch-products.md`：修补材料与冷补料产品知识
 - `07-polyurethane-sealant-products.md`：聚氨酯、发泡和密封材料知识
 - `08-accessory-products.md`：辅材及其他产品知识

@@ -9,6 +9,7 @@ from flask_cors import CORS
 from auth_service import api_auth_required, is_public_customer_chat, verify_request
 from config import (
     DIFY_ENABLED,
+    DIFY_APP_MODE,
     FLASK_DEBUG,
     FLASK_PORT,
     MOCK_AI_ENABLED,
@@ -764,6 +765,7 @@ def api_system_health():
         "config": {
             "supabase_enabled": SUPABASE_ENABLED,
             "dify_enabled": DIFY_ENABLED,
+            "dify_app_mode": DIFY_APP_MODE,
             "mock_ai_enabled": MOCK_AI_ENABLED,
             "wecom_enabled": WECOM_ENABLED,
             "wecom_kf_enabled": WECOM_KF_ENABLED,

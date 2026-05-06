@@ -10,6 +10,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = PROJECT_ROOT / "backend"
 OUTPUT_DIR = PROJECT_ROOT / "dify-workflow" / "aggregate-docs"
+MAX_DOC_BYTES = 20000
 sys.path.insert(0, str(BACKEND_DIR))
 
 from services.repository import get_repository  # noqa: E402
@@ -53,9 +54,11 @@ def main() -> int:
         group_items = grouped.get(slug, [])
         if not group_items:
             continue
-        path = OUTPUT_DIR / f"{slug}.md"
-        path.write_text(_render_doc(title, group_items), encoding="utf-8")
-        written.append({"file": str(path.relative_to(PROJECT_ROOT)), "items": len(group_items)})
+        for part_index, chunk in enumerate(_chunk_items(group_items), 1):
+            suffix = f"-part{part_index:02d}" if len(group_items) != len(chunk) else ""
+            path = OUTPUT_DIR / f"{slug}{suffix}.md"
+            path.write_text(_render_doc(title, chunk, part_index=part_index if suffix else None), encoding="utf-8")
+            written.append({"file": str(path.relative_to(PROJECT_ROOT)), "items": len(chunk)})
 
     manifest = OUTPUT_DIR / "manifest.md"
     manifest.write_text(_render_manifest(written, len(items)), encoding="utf-8")
@@ -130,9 +133,10 @@ def _render_manifest(written: list[dict[str, Any]], total: int) -> str:
     return "\n".join(lines)
 
 
-def _render_doc(title: str, items: list[dict[str, Any]]) -> str:
+def _render_doc(title: str, items: list[dict[str, Any]], *, part_index: int | None = None) -> str:
+    display_title = f"{title} - 第 {part_index} 部分" if part_index else title
     lines = [
-        f"# {title}",
+        f"# {display_title}",
         "",
         "## 使用边界",
         "",
@@ -149,6 +153,21 @@ def _render_doc(title: str, items: list[dict[str, Any]]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _chunk_items(items: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    chunks: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    for item in items:
+        candidate = current + [item]
+        if current and len(_render_doc("size-check", candidate).encode("utf-8")) > MAX_DOC_BYTES:
+            chunks.append(current)
+            current = [item]
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _render_item(index: int, item: dict[str, Any]) -> list[str]:
     item_type = item.get("item_type") or "knowledge"
     title = item.get("title") or item.get("question") or f"知识条目 {index}"
@@ -156,6 +175,8 @@ def _render_item(index: int, item: dict[str, Any]) -> list[str]:
     fields = [
         ("类型", item_type),
         ("分类", item.get("category")),
+        ("检索关键词", _retrieval_keywords(item)),
+        ("客户常见问法", _customer_question_variants(item)),
         ("品牌/负责人", item.get("brand")),
         ("规格/区域/电话", item.get("spec")),
         ("单位/服务时间", item.get("unit")),
@@ -196,6 +217,58 @@ def _money(value: Any) -> str:
 def _item_text(item: dict[str, Any]) -> str:
     fields = ["category", "title", "brand", "spec", "core_params", "usage_scenarios", "related_items", "question", "answer"]
     return " ".join(str(item.get(field) or "") for field in fields)
+
+
+def _retrieval_keywords(item: dict[str, Any]) -> str:
+    text = _item_text(item)
+    seeds = [
+        item.get("title"),
+        item.get("category"),
+        item.get("brand"),
+        item.get("spec"),
+        item.get("question"),
+    ]
+    aliases = {
+        "冷补料": ["沥青冷补料", "道路修补", "坑槽修补", "冬季冷补料", "雨天冷补料"],
+        "聚氨酯": ["聚氨酯发泡", "聚氨酯喷涂", "聚氨酯密封胶", "PU", "发泡胶"],
+        "岩棉": ["岩棉板", "防火保温", "外墙保温", "A级防火"],
+        "挤塑": ["XPS", "挤塑板", "地暖保温", "外墙保温"],
+        "防水": ["防水涂料", "堵漏", "屋面防水", "卫生间防水"],
+        "砂浆": ["抗裂砂浆", "粘结砂浆", "抹面砂浆", "瓷砖胶"],
+        "电话": ["联系人", "销售电话", "报价电话", "门店电话"],
+        "地址": ["门店地址", "自提地址", "导航", "营业时间"],
+        "破损": ["货损", "少货", "错发", "售后", "投诉", "退款"],
+    }
+    for key, values in aliases.items():
+        if key in text:
+            seeds.extend(values)
+    cleaned = []
+    seen = set()
+    for value in seeds:
+        value = _clean(value)
+        if value and value not in seen:
+            cleaned.append(value)
+            seen.add(value)
+    return "、".join(cleaned[:16])
+
+
+def _customer_question_variants(item: dict[str, Any]) -> str:
+    item_type = item.get("item_type")
+    title = _clean(item.get("title") or item.get("question") or "这个产品")
+    question = _clean(item.get("question"))
+    variants = [question] if question else []
+    if item_type == "product":
+        variants.extend([
+            f"{title}多少钱？",
+            f"{title}有什么规格？",
+            f"{title}适合什么场景？",
+            f"{title}怎么施工？",
+        ])
+    elif item_type in {"store", "contact"}:
+        variants.extend(["你们门店在哪？", "找谁报价？", "联系电话是多少？", "能自提吗？"])
+    elif item_type in {"policy", "faq"}:
+        variants.extend(["货破损了怎么办？", "能退货退款吗？", "运费怎么算？", "上楼费怎么算？"])
+    return "；".join(dict.fromkeys(v for v in variants if v))[:500]
 
 
 if __name__ == "__main__":

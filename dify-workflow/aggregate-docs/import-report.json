@@ -2,56 +2,91 @@
   {
     "file": "dify-workflow\\aggregate-docs\\01-store-contacts.md",
     "name": "SmartQA 聚合知识 - 01-store-contacts - 门店地址与联系人",
-    "operation": "create",
+    "operation": "update",
     "ok": true,
     "document_id": "fb5ab2d1-c514-431a-9a87-60767f84bb6a"
   },
   {
     "file": "dify-workflow\\aggregate-docs\\02-pricing-logistics-aftersales.md",
     "name": "SmartQA 聚合知识 - 02-pricing-logistics-aftersales - 报价、物流配送与售后规则",
-    "operation": "create",
+    "operation": "update",
     "ok": true,
     "document_id": "5bb8a6fc-0236-4bc8-a1f9-c3d07348b2f0"
   },
   {
-    "file": "dify-workflow\\aggregate-docs\\03-insulation-products.md",
-    "name": "SmartQA 聚合知识 - 03-insulation-products - 保温材料产品知识",
+    "file": "dify-workflow\\aggregate-docs\\03-insulation-products-part01.md",
+    "name": "SmartQA 聚合知识 - 03-insulation-products-part01 - 保温材料产品知识 - 第 1 部分",
     "operation": "create",
     "ok": true,
-    "document_id": "8e911f73-8da9-4403-a977-a66992f0adfc"
+    "document_id": "0957fdf3-98be-4df2-a532-b4b1d19e5a20"
   },
   {
-    "file": "dify-workflow\\aggregate-docs\\04-waterproof-products.md",
-    "name": "SmartQA 聚合知识 - 04-waterproof-products - 防水材料产品知识",
+    "file": "dify-workflow\\aggregate-docs\\03-insulation-products-part02.md",
+    "name": "SmartQA 聚合知识 - 03-insulation-products-part02 - 保温材料产品知识 - 第 2 部分",
     "operation": "create",
     "ok": true,
-    "document_id": "6ea481cf-0175-4a82-a746-7032cc331d22"
+    "document_id": "b1036ee5-2e7c-4609-bc0c-853def5e4d33"
   },
   {
-    "file": "dify-workflow\\aggregate-docs\\05-mortar-adhesive-products.md",
-    "name": "SmartQA 聚合知识 - 05-mortar-adhesive-products - 砂浆与粘接材料产品知识",
+    "file": "dify-workflow\\aggregate-docs\\03-insulation-products-part03.md",
+    "name": "SmartQA 聚合知识 - 03-insulation-products-part03 - 保温材料产品知识 - 第 3 部分",
     "operation": "create",
     "ok": true,
-    "document_id": "1aee5716-58f3-4c1f-af8c-15155ee75573"
+    "document_id": "3b1b2a9f-9d4e-49f0-a21b-246ec197cec5"
+  },
+  {
+    "file": "dify-workflow\\aggregate-docs\\04-waterproof-products-part01.md",
+    "name": "SmartQA 聚合知识 - 04-waterproof-products-part01 - 防水材料产品知识 - 第 1 部分",
+    "operation": "create",
+    "ok": true,
+    "document_id": "2fb9b46b-aae9-465e-b860-6e6357007b14"
+  },
+  {
+    "file": "dify-workflow\\aggregate-docs\\04-waterproof-products-part02.md",
+    "name": "SmartQA 聚合知识 - 04-waterproof-products-part02 - 防水材料产品知识 - 第 2 部分",
+    "operation": "create",
+    "ok": true,
+    "document_id": "342c8541-c957-482f-bf72-00f73b8dd0a7"
+  },
+  {
+    "file": "dify-workflow\\aggregate-docs\\04-waterproof-products-part03.md",
+    "name": "SmartQA 聚合知识 - 04-waterproof-products-part03 - 防水材料产品知识 - 第 3 部分",
+    "operation": "create",
+    "ok": true,
+    "document_id": "5073162a-27f5-43dc-8c68-c19d0a8ec3dd"
+  },
+  {
+    "file": "dify-workflow\\aggregate-docs\\05-mortar-adhesive-products-part01.md",
+    "name": "SmartQA 聚合知识 - 05-mortar-adhesive-products-part01 - 砂浆与粘接材料产品知识 - 第 1 部分",
+    "operation": "create",
+    "ok": true,
+    "document_id": "45537539-eb0e-48d0-bd56-5225857061df"
+  },
+  {
+    "file": "dify-workflow\\aggregate-docs\\05-mortar-adhesive-products-part02.md",
+    "name": "SmartQA 聚合知识 - 05-mortar-adhesive-products-part02 - 砂浆与粘接材料产品知识 - 第 2 部分",
+    "operation": "create",
+    "ok": true,
+    "document_id": "4a1f7f99-66de-4014-bdbf-c8b2c24dbbd7"
   },
   {
     "file": "dify-workflow\\aggregate-docs\\06-repair-cold-patch-products.md",
     "name": "SmartQA 聚合知识 - 06-repair-cold-patch-products - 修补材料与冷补料产品知识",
-    "operation": "create",
+    "operation": "update",
     "ok": true,
     "document_id": "52edbdf3-f1b0-4c35-9815-5ab9c4047bfb"
   },
   {
     "file": "dify-workflow\\aggregate-docs\\07-polyurethane-sealant-products.md",
     "name": "SmartQA 聚合知识 - 07-polyurethane-sealant-products - 聚氨酯、发泡和密封材料知识",
-    "operation": "create",
+    "operation": "update",
     "ok": true,
     "document_id": "7a31107b-c06e-4525-8a49-84cb7abe9817"
   },
   {
     "file": "dify-workflow\\aggregate-docs\\08-accessory-products.md",
     "name": "SmartQA 聚合知识 - 08-accessory-products - 辅材及其他产品知识",
-    "operation": "create",
+    "operation": "update",
     "ok": true,
     "document_id": "bc689dd5-d88f-4a7b-b7a9-bacf3d95b5fc"
   }

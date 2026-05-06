@@ -41,6 +41,7 @@ CUSTOMER_ACCESS_TOKEN_SECRET = os.getenv("CUSTOMER_ACCESS_TOKEN_SECRET", SUPABAS
 DIFY_API_URL = os.getenv("DIFY_API_URL", "http://localhost/v1").rstrip("/")
 DIFY_API_KEY = os.getenv("DIFY_API_KEY", "")
 DIFY_USER = os.getenv("DIFY_USER", "smartqa-system")
+DIFY_APP_MODE = os.getenv("DIFY_APP_MODE", "auto").strip().lower()
 DIFY_ENABLED = bool(DIFY_API_KEY)
 DIFY_DATASET_ID = os.getenv("DIFY_DATASET_ID", "")
 DIFY_DATASET_API_KEY = os.getenv("DIFY_DATASET_API_KEY", DIFY_API_KEY)

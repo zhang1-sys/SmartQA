@@ -8,7 +8,7 @@ from typing import Any
 
 import requests
 
-from config import DIFY_API_KEY, DIFY_API_URL, DIFY_USER, MOCK_AI_ENABLED
+from config import DIFY_API_KEY, DIFY_API_URL, DIFY_USER, DIFY_APP_MODE, MOCK_AI_ENABLED
 
 
 _MOCK_RESPONSES = [
@@ -54,6 +54,27 @@ def run_workflow(
         "knowledge_sources": json.dumps(knowledge_sources or [], ensure_ascii=False),
         "knowledge_hit": "true" if knowledge_sources else "false",
     }
+    if DIFY_APP_MODE == "workflow":
+        data = _run_workflow_endpoint(inputs)
+        parsed = _parse_workflow_response(data)
+    else:
+        data, parsed = _run_chat_endpoint(inputs, message, dify_conversation_id, allow_workflow_fallback=DIFY_APP_MODE == "auto")
+    if knowledge_sources:
+        _merge_knowledge_sources(parsed, knowledge_sources)
+    parsed["dify_conversation_id"] = data.get("conversation_id") or data.get("workflow_run_id")
+    parsed["dify_message_id"] = data.get("message_id") or data.get("task_id") or data.get("workflow_run_id")
+    parsed["raw_dify_response"] = data
+    parsed["latency_ms"] = int((time.monotonic() - started) * 1000)
+    return _ensure_contract(parsed, message)
+
+
+def _run_chat_endpoint(
+    inputs: dict[str, Any],
+    message: str,
+    dify_conversation_id: str | None,
+    *,
+    allow_workflow_fallback: bool,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     payload = {
         "inputs": inputs,
         "query": message,
@@ -62,7 +83,6 @@ def run_workflow(
     }
     if dify_conversation_id:
         payload["conversation_id"] = dify_conversation_id
-
     try:
         response = requests.post(
             f"{DIFY_API_URL}/chat-messages",
@@ -75,35 +95,33 @@ def run_workflow(
         parsed = _parse_structured_answer(data.get("answer", ""))
     except requests.HTTPError as exc:
         chat_error = exc
-        if not _should_retry_as_workflow(exc.response):
+        if not allow_workflow_fallback or not _should_retry_as_workflow(exc.response):
             raise
-        workflow_payload = {
-            "inputs": inputs,
-            "user": DIFY_USER,
-            "response_mode": "blocking",
-        }
         try:
-            response = requests.post(
-                f"{DIFY_API_URL}/workflows/run",
-                headers=_headers(),
-                json=workflow_payload,
-                timeout=90,
-            )
-            response.raise_for_status()
+            data = _run_workflow_endpoint(inputs)
         except requests.HTTPError as workflow_exc:
             raise RuntimeError(
                 f"Dify chat endpoint failed: {_format_http_error(chat_error)}; "
                 f"workflow endpoint failed: {_format_http_error(workflow_exc)}"
             ) from workflow_exc
-        data = response.json()
         parsed = _parse_workflow_response(data)
-    if knowledge_sources:
-        _merge_knowledge_sources(parsed, knowledge_sources)
-    parsed["dify_conversation_id"] = data.get("conversation_id") or data.get("workflow_run_id")
-    parsed["dify_message_id"] = data.get("message_id") or data.get("task_id") or data.get("workflow_run_id")
-    parsed["raw_dify_response"] = data
-    parsed["latency_ms"] = int((time.monotonic() - started) * 1000)
-    return _ensure_contract(parsed, message)
+    return data, parsed
+
+
+def _run_workflow_endpoint(inputs: dict[str, Any]) -> dict[str, Any]:
+    workflow_payload = {
+        "inputs": inputs,
+        "user": DIFY_USER,
+        "response_mode": "blocking",
+    }
+    response = requests.post(
+        f"{DIFY_API_URL}/workflows/run",
+        headers=_headers(),
+        json=workflow_payload,
+        timeout=90,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def _should_retry_as_workflow(response) -> bool:

@@ -27,6 +27,8 @@ services:
         sync: false
       - key: DIFY_API_KEY
         sync: false
+      - key: DIFY_APP_MODE
+        value: workflow
       - key: DIFY_DATASET_ID
         sync: false
       - key: DIFY_DATASET_API_KEY

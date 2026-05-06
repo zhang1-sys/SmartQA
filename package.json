@@ -11,6 +11,7 @@
     "smoke:auth": "python backend/tests/smoke_internal_auth.py",
     "smoke:facts": "python backend/tests/smoke_business_facts.py",
     "smoke:dify-fallback": "python backend/tests/smoke_dify_fallback.py",
+    "smoke:knowledge": "python tools/check_knowledge_quality.py",
     "smoke:loop": "python backend/tests/smoke_enterprise_loop.py",
     "check:production": "python tools/production_check.py",
     "supabase:push": "tools\\supabase\\supabase.exe db push"
