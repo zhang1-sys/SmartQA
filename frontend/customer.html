@@ -5,271 +5,607 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="format-detection" content="telephone=no">
-  <title>智能客服</title>
+  <title>鑫源建材 AI 咨询</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --brand: #07c160;
-      --brand-dark: #06ad56;
-      --bg: #ededed;
-      --bubble-customer: #95ec69;
-      --bubble-ai: #fff;
-      --text: #111;
-      --text-secondary: #999;
-    }
-    body {
-      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+      --ink: #17211b;
+      --muted: #637068;
+      --line: #dce7df;
+      --paper: #fbfaf5;
+      --panel: #ffffff;
+      --field: #f6f4ec;
+      --brand: #0f766e;
+      --brand-dark: #0b5f59;
+      --brand-soft: #dff4ee;
+      --gold: #b7791f;
+      --warm: #f3ead7;
+      --customer: #123f37;
+      --shadow: 0 18px 50px rgba(15, 118, 110, 0.12);
     }
 
-    /* ── 顶部栏 ── */
-    .header {
-      background: #ededed;
-      padding: 12px 16px;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(183, 121, 31, 0.12), transparent 34%),
+        linear-gradient(145deg, #f7f4e9 0%, #eef7f2 48%, #f8faf7 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .register-screen {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 28px 18px;
+      overflow-y: auto;
+    }
+
+    .register-screen.hidden { display: none; }
+
+    .register-shell {
+      width: min(440px, 100%);
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(220, 231, 223, 0.9);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .store-hero {
+      padding: 26px 24px 22px;
+      background:
+        linear-gradient(135deg, rgba(15, 118, 110, 0.94), rgba(18, 63, 55, 0.94)),
+        repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.06) 18px 19px);
+      color: #fff;
+    }
+
+    .store-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid #ddd;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      margin-bottom: 7px;
+    }
+
+    .register-title {
+      font-size: 25px;
+      line-height: 1.25;
+      font-weight: 900;
+    }
+
+    .register-desc {
+      color: rgba(255,255,255,0.78);
+      font-size: 14px;
+      line-height: 1.75;
+      margin-top: 12px;
+    }
+
+    .service-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .service-pill {
+      min-height: 54px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 9px;
+    }
+
+    .service-pill b {
+      display: block;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .service-pill span {
+      display: block;
+      color: rgba(255,255,255,0.68);
+      font-size: 11px;
+      margin-top: 4px;
+      line-height: 1.25;
+    }
+
+    .register-form {
+      padding: 22px 24px 24px;
+      background: var(--panel);
+    }
+
+    .form-field { margin-bottom: 15px; }
+
+    .form-field label {
+      display: block;
+      color: #314139;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+
+    .form-field input {
+      width: 100%;
+      height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--field);
+      color: var(--ink);
+      padding: 0 14px;
+      outline: none;
+      font-size: 16px;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+
+    .form-field input:focus {
+      border-color: rgba(15, 118, 110, 0.6);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.09);
+    }
+
+    .btn-register {
+      width: 100%;
+      height: 50px;
+      border: 0;
+      border-radius: 15px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      box-shadow: 0 10px 24px rgba(15, 118, 110, 0.22);
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .register-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      text-align: center;
+      margin-top: 14px;
+    }
+
+    .chat-screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      width: min(920px, 100%);
+      height: 100vh;
+      margin: 0 auto;
+      background: rgba(251, 250, 245, 0.92);
+      border-left: 1px solid rgba(220,231,223,0.75);
+      border-right: 1px solid rgba(220,231,223,0.75);
+    }
+
+    .chat-screen.active { display: flex; }
+
+    .header {
       flex-shrink: 0;
+      padding: 14px 18px 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px);
       position: sticky;
       top: 0;
       z-index: 10;
     }
-    .header-avatar {
-      width: 40px; height: 40px;
-      background: linear-gradient(135deg, #07c160, #06ad56);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 700; font-size: 18px;
-    }
-    .header-info { flex: 1; }
-    .header-name { font-size: 16px; font-weight: 600; }
-    .header-status { font-size: 12px; color: var(--brand); margin-top: 2px; }
 
-    /* ── 注册表单 ── */
-    .register-screen {
-      flex: 1;
+    .header-main {
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      padding: 32px 24px;
-      background: #fff;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), #123f37);
+      font-size: 18px;
+      font-weight: 900;
+      flex-shrink: 0;
     }
-    .register-screen.hidden { display: none; }
-    .register-logo {
-      width: 72px; height: 72px;
-      background: linear-gradient(135deg, #07c160, #06ad56);
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 700; font-size: 32px;
-      margin-bottom: 20px;
-    }
-    .register-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-    .register-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; text-align: center; line-height: 1.6; }
-    .register-form { width: 100%; max-width: 320px; }
-    .form-field { margin-bottom: 16px; }
-    .form-field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #333; }
-    .form-field input {
-      width: 100%; border: 1px solid #ddd; border-radius: 8px;
-      padding: 12px 14px; font-size: 16px; outline: none;
-      transition: border-color 0.2s;
-    }
-    .form-field input:focus { border-color: var(--brand); }
-    .btn-register {
-      width: 100%; background: var(--brand); color: #fff;
-      border: none; border-radius: 8px; padding: 14px;
-      font-size: 16px; font-weight: 600; cursor: pointer;
-      margin-top: 8px;
-    }
-    .btn-register:active { background: var(--brand-dark); }
 
-    /* ── 聊天区 ── */
-    .chat-screen { flex: 1; display: none; flex-direction: column; }
-    .chat-screen.active { display: flex; }
+    .header-info { min-width: 0; flex: 1; }
+    .header-name {
+      font-size: 16px;
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-status {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 5px;
+      vertical-align: 1px;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
+    }
+
+    .store-strip {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      margin-top: 12px;
+      padding-bottom: 1px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .store-strip::-webkit-scrollbar,
+    .quick-questions::-webkit-scrollbar { display: none; }
+
+    .store-chip {
+      flex-shrink: 0;
+      border: 1px solid var(--line);
+      background: var(--field);
+      color: #405047;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
     .messages {
-      flex: 1; overflow-y: auto; padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 16px 16px;
       -webkit-overflow-scrolling: touch;
     }
-    .msg { display: flex; margin-bottom: 16px; gap: 10px; align-items: flex-start; }
+
+    .day-divider {
+      display: flex;
+      justify-content: center;
+      margin: 2px 0 18px;
+    }
+
+    .day-divider span {
+      color: #7b877f;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      animation: rise 0.18s ease-out;
+    }
+
     .msg.customer { flex-direction: row-reverse; }
+
+    @keyframes rise {
+      from { transform: translateY(5px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
     .msg-avatar {
-      width: 36px; height: 36px; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 600; font-size: 14px; flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      box-shadow: 0 8px 20px rgba(18,63,55,0.12);
     }
-    .msg.customer .msg-avatar { background: linear-gradient(135deg, #f59e0b, #ef4444); }
-    .msg.ai .msg-avatar { background: linear-gradient(135deg, #07c160, #06ad56); }
+
+    .msg.customer .msg-avatar { background: linear-gradient(135deg, #b7791f, #7c4a13); }
+    .msg.ai .msg-avatar { background: linear-gradient(135deg, var(--brand), #123f37); }
+
+    .msg-stack {
+      max-width: min(76%, 620px);
+      min-width: 0;
+    }
+
     .msg-bubble {
-      max-width: 72%; padding: 10px 14px;
-      font-size: 15px; line-height: 1.6;
+      padding: 12px 14px;
+      font-size: 15px;
+      line-height: 1.72;
       word-break: break-word;
+      white-space: normal;
     }
+
     .msg.customer .msg-bubble {
-      background: var(--bubble-customer);
-      border-radius: 12px 12px 2px 12px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--customer), #0f766e);
+      border-radius: 17px 17px 4px 17px;
     }
+
     .msg.ai .msg-bubble {
-      background: var(--bubble-ai);
-      border-radius: 12px 12px 12px 2px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      background: #fff;
+      border: 1px solid rgba(220,231,223,0.9);
+      border-radius: 17px 17px 17px 4px;
+      box-shadow: 0 10px 30px rgba(23, 33, 27, 0.06);
     }
+
     .msg-time {
-      font-size: 11px; color: var(--text-secondary);
-      margin-top: 4px; text-align: center;
+      color: #8a958e;
+      font-size: 11px;
+      margin-top: 5px;
+      padding: 0 4px;
     }
+
     .msg.customer .msg-time { text-align: right; }
 
-    /* ── 输入区 ── */
-    .input-bar {
-      padding: 10px 12px;
-      background: #f7f7f7;
-      border-top: 1px solid #ddd;
-      display: flex; gap: 10px; align-items: flex-end;
-      flex-shrink: 0;
-      padding-bottom: max(10px, env(safe-area-inset-bottom));
-    }
-    .input-bar textarea {
-      flex: 1; border: 1px solid #ddd; border-radius: 8px;
-      padding: 10px 12px; font-size: 15px; outline: none;
-      resize: none; min-height: 40px; max-height: 120px;
-      font-family: inherit; line-height: 1.5;
-      background: #fff;
-    }
-    .input-bar textarea:focus { border-color: var(--brand); }
-    .btn-send {
-      background: var(--brand); color: #fff;
-      border: none; border-radius: 8px; padding: 10px 18px;
-      font-size: 15px; font-weight: 600; cursor: pointer;
-      white-space: nowrap; flex-shrink: 0;
-    }
-    .btn-send:active { background: var(--brand-dark); }
-    .btn-send:disabled { background: #ccc; }
-
-    /* ── 底部提示 ── */
-    .footer-hint {
-      text-align: center; font-size: 12px; color: var(--text-secondary);
-      padding: 8px; background: #f7f7f7;
-    }
-
-    /* ── 打字动画 ── */
-    .typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
-    .typing-dots span {
-      width: 8px; height: 8px; background: #ccc; border-radius: 50%;
-      animation: blink 1.4s infinite both;
-    }
-    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink {
-      0%, 80%, 100% { opacity: 0.3; }
-      40% { opacity: 1; }
-    }
-
-    /* ── 快捷问题 ── */
     .quick-questions {
-      display: flex; gap: 8px; padding: 8px 16px;
-      overflow-x: auto; flex-shrink: 0;
+      flex-shrink: 0;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 9px 14px 10px;
+      background: rgba(251, 250, 245, 0.92);
+      border-top: 1px solid rgba(220,231,223,0.55);
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+
     .quick-questions.hidden { display: none; }
+
     .quick-btn {
-      background: #fff; border: 1px solid #ddd; border-radius: 16px;
-      padding: 6px 14px; font-size: 13px; color: #333;
-      white-space: nowrap; cursor: pointer; flex-shrink: 0;
+      flex-shrink: 0;
+      border: 1px solid #d4e4da;
+      border-radius: 999px;
+      background: #fff;
+      color: #24443c;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(15,118,110,0.06);
     }
-    .quick-btn:active { background: #f0f0f0; }
+
+    .quick-btn:active { transform: translateY(1px); background: var(--brand-soft); }
+
+    .input-wrap {
+      flex-shrink: 0;
+      background: rgba(255,255,255,0.94);
+      border-top: 1px solid var(--line);
+      padding: 11px 12px max(11px, env(safe-area-inset-bottom));
+    }
+
+    .input-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 9px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--field);
+    }
+
+    .input-bar textarea {
+      flex: 1;
+      min-height: 38px;
+      max-height: 128px;
+      border: 0;
+      outline: none;
+      resize: none;
+      background: transparent;
+      color: var(--ink);
+      padding: 8px 5px 7px 8px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .btn-send {
+      width: 74px;
+      min-height: 38px;
+      border: 0;
+      border-radius: 15px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .btn-send:disabled {
+      background: #bec8c1;
+      cursor: not-allowed;
+    }
+
+    .footer-hint {
+      color: #7d8981;
+      font-size: 11px;
+      line-height: 1.5;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    .typing-dots {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 0;
+    }
+
+    .typing-dots span {
+      width: 7px;
+      height: 7px;
+      background: #8a958e;
+      border-radius: 50%;
+      animation: blink 1.25s infinite both;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.32s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    @media (min-width: 760px) {
+      body { padding: 18px; }
+      .chat-screen {
+        height: calc(100vh - 36px);
+        border-radius: 26px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .messages { padding: 22px 22px 18px; }
+      .msg-stack { max-width: min(68%, 640px); }
+    }
+
+    @media (max-width: 380px) {
+      .service-row { grid-template-columns: 1fr; }
+      .register-title { font-size: 22px; }
+      .header { padding-left: 13px; padding-right: 13px; }
+      .msg-stack { max-width: 78%; }
+      .btn-send { width: 64px; }
+    }
   </style>
 </head>
 <body>
-
-  <!-- 注册界面 -->
   <div class="register-screen" id="register-screen">
-    <div class="register-logo">客</div>
-    <div class="register-title">欢迎咨询</div>
-    <div class="register-desc">请输入您的信息，开始与AI智能客服对话<br>保温建材产品咨询 · 报价 · 技术支持</div>
-    <div class="register-form">
-      <div class="form-field">
-        <label>公司名称 *</label>
-        <input type="text" id="reg-company" placeholder="如：鑫源建材">
-      </div>
-      <div class="form-field">
-        <label>联系人 *</label>
-        <input type="text" id="reg-name" placeholder="如：王经理">
-      </div>
-      <div class="form-field">
-        <label>手机号</label>
-        <input type="tel" id="reg-phone" placeholder="选填，方便后续联系">
-      </div>
-      <button class="btn-register" onclick="register()">开始咨询</button>
+    <div class="register-shell">
+      <section class="store-hero">
+        <div class="store-mark">鑫</div>
+        <div class="eyebrow">鑫源保温防水防火 · AI 咨询台</div>
+        <h1 class="register-title">把产品、报价和施工问题先问清楚</h1>
+        <p class="register-desc">适合咨询保温材料、防水防火材料、冷补料、发泡胶、门店自提、配送、发票和售后处理。</p>
+        <div class="service-row">
+          <div class="service-pill"><b>7:30-18:30</b><span>门店服务时间</span></div>
+          <div class="service-pill"><b>天津滨海</b><span>环渤海建材市场</span></div>
+          <div class="service-pill"><b>人工兜底</b><span>复杂问题转接</span></div>
+        </div>
+      </section>
+      <section class="register-form">
+        <div class="form-field">
+          <label>公司或项目名称 *</label>
+          <input type="text" id="reg-company" placeholder="例如：滨海某工地 / 鑫源建材">
+        </div>
+        <div class="form-field">
+          <label>联系人 *</label>
+          <input type="text" id="reg-name" placeholder="例如：王经理">
+        </div>
+        <div class="form-field">
+          <label>手机号</label>
+          <input type="tel" id="reg-phone" placeholder="选填，方便人工同事继续跟进">
+        </div>
+        <button class="btn-register" onclick="register()">开始咨询</button>
+        <div class="register-note">提交后会进入 AI 客服会话，复杂报价、库存和售后问题会由人工同事确认。</div>
+      </section>
     </div>
   </div>
 
-  <!-- 聊天界面 -->
   <div class="chat-screen" id="chat-screen">
-    <div class="header">
-      <div class="header-avatar">客</div>
-      <div class="header-info">
-        <div class="header-name" id="header-company">-</div>
-        <div class="header-status">在线 · 随时为您服务</div>
+    <header class="header">
+      <div class="header-main">
+        <div class="header-avatar">鑫</div>
+        <div class="header-info">
+          <div class="header-name" id="header-company">-</div>
+          <div class="header-status"><span class="status-dot"></span>AI 建材顾问在线，必要时转人工确认</div>
+        </div>
       </div>
-    </div>
+      <div class="store-strip">
+        <span class="store-chip">天津市滨海新区厦门路</span>
+        <span class="store-chip">营业 7:30-18:30</span>
+        <span class="store-chip">销售电话 13512490668</span>
+        <span class="store-chip">支持自提与配送咨询</span>
+      </div>
+    </header>
 
-    <div class="messages" id="messages">
-      <!-- 欢迎消息 -->
-    </div>
+    <main class="messages" id="messages"></main>
 
     <div class="quick-questions" id="quick-questions">
-      <button class="quick-btn" onclick="sendQuick(this)">岩棉板多少钱一平？</button>
-      <button class="quick-btn" onclick="sendQuick(this)">XPS和EPS有什么区别？</button>
-      <button class="quick-btn" onclick="sendQuick(this)">能开发票吗？</button>
-      <button class="quick-btn" onclick="sendQuick(this)">运费怎么算？</button>
+      <button class="quick-btn" onclick="sendQuick(this)">冷补料雨天能施工吗？</button>
+      <button class="quick-btn" onclick="sendQuick(this)">门店地址和电话是什么？</button>
+      <button class="quick-btn" onclick="sendQuick(this)">可以开发票吗？</button>
+      <button class="quick-btn" onclick="sendQuick(this)">货破损了怎么处理？</button>
+      <button class="quick-btn" onclick="sendQuick(this)">聚氨酯发泡胶适合门窗缝吗？</button>
     </div>
 
-    <div class="input-bar">
-      <textarea id="msg-input" placeholder="输入您的问题..." rows="1"
-        oninput="autoResize(this)"></textarea>
-      <button class="btn-send" id="btn-send" onclick="sendMsg()">发送</button>
-    </div>
-
-    <div class="footer-hint">AI智能客服 · 由SmartQA提供技术支持</div>
+    <footer class="input-wrap">
+      <div class="input-bar">
+        <textarea id="msg-input" placeholder="输入产品、规格、数量或施工问题..." rows="1" oninput="autoResize(this)"></textarea>
+        <button class="btn-send" id="btn-send" onclick="sendMsg()">发送</button>
+      </div>
+      <div class="footer-hint">AI 回复仅作初步咨询，最终价格、库存、账期和售后处理以人工确认为准</div>
+    </footer>
   </div>
 
   <script>
-    // ── 配置 ──
     const API = location.origin + '/api';
     let sessionId = null;
     let accessToken = null;
     let customerName = '';
 
-    // ── 页面加载 ──
     document.addEventListener('DOMContentLoaded', () => {
       const saved = localStorage.getItem('smartqa_customer');
       if (saved) {
-        const info = JSON.parse(saved);
-        sessionId = info.session_id;
-        accessToken = info.access_token;
-        customerName = info.name;
-        if (sessionId && accessToken) {
-          showChat(info.company, info.name);
-          loadHistory();
-        } else {
+        try {
+          const info = JSON.parse(saved);
+          sessionId = info.session_id;
+          accessToken = info.access_token;
+          customerName = info.name || '';
+          if (sessionId && accessToken) {
+            showChat(info.company || '客户咨询', info.name || '');
+            loadHistory();
+          } else {
+            localStorage.removeItem('smartqa_customer');
+          }
+        } catch (e) {
           localStorage.removeItem('smartqa_customer');
         }
       }
     });
 
-    // ── 注册 ──
     async function register() {
       const company = document.getElementById('reg-company').value.trim();
       const name = document.getElementById('reg-name').value.trim();
       const phone = document.getElementById('reg-phone').value.trim();
       if (!company || !name) {
-        alert('请填写公司名称和联系人');
+        alert('请填写公司或项目名称和联系人');
         return;
       }
 
@@ -280,38 +616,44 @@
           body: JSON.stringify({ company, name, phone })
         });
         const data = await res.json();
-        if (data.error) { alert(data.error); return; }
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
 
         sessionId = data.session_id;
         accessToken = data.access_token;
         customerName = name;
         localStorage.setItem('smartqa_customer', JSON.stringify({
-          session_id: sessionId, access_token: accessToken, company, name, phone
+          session_id: sessionId,
+          access_token: accessToken,
+          company,
+          name,
+          phone
         }));
         clearMessages();
         showQuickQuestions();
         showChat(company, name);
         showWelcome(company);
       } catch (e) {
-        alert('网络错误，请重试');
+        alert('网络异常，请稍后重试');
       }
     }
 
-    // ── 显示聊天界面 ──
-    function showChat(company, name) {
+    function showChat(company) {
       document.getElementById('register-screen').classList.add('hidden');
       document.getElementById('chat-screen').classList.add('active');
       document.getElementById('header-company').textContent = company;
-      document.querySelector('.header-avatar').textContent = company.charAt(0);
+      document.querySelectorAll('.header-avatar').forEach(el => {
+        el.textContent = (company || '鑫').charAt(0);
+      });
     }
 
-    // ── 欢迎消息 ──
     function showWelcome(company) {
-      const now = getTime();
-      addMessage('ai', `${company}，您好！我是AI智能客服，很高兴为您服务。\n\n您可以直接问我关于保温建材产品的任何问题，包括：\n\n• 产品价格与规格\n• 技术参数与选型\n• 物流运费\n• 售后政策`, now);
+      const text = `${company}，您好。我是鑫源建材 AI 咨询助手。\n\n您可以直接告诉我：产品名称、规格、数量、项目地址或施工场景。我会先帮您整理产品参数、施工边界、门店信息、发票和售后规则；涉及最终价格、库存、账期和特殊售后时，会提示人工同事确认。`;
+      addMessage('ai', text, getTime());
     }
 
-    // ── 加载历史消息 ──
     async function loadHistory() {
       try {
         const params = new URLSearchParams({ session_id: sessionId, access_token: accessToken });
@@ -322,13 +664,14 @@
           location.reload();
           return;
         }
+        clearMessages();
         if (data.messages && data.messages.length > 0) {
-          clearMessages();
+          hideQuickQuestions();
           data.messages.forEach(m => {
-            addMessage(m.role === 'customer' ? 'customer' : 'ai', m.content,
-              m.timestamp ? m.timestamp.substring(11, 16) : '');
+            addMessage(m.role === 'customer' ? 'customer' : 'ai', m.content, formatHistoryTime(m.timestamp));
           });
         } else {
+          showQuickQuestions();
           showWelcome(document.getElementById('header-company').textContent);
         }
       } catch (e) {
@@ -336,19 +679,17 @@
       }
     }
 
-    // ── 发送消息 ──
     async function sendMsg() {
       const input = document.getElementById('msg-input');
+      const button = document.getElementById('btn-send');
       const msg = input.value.trim();
-      if (!msg) return;
+      if (!msg || button.disabled) return;
 
       input.value = '';
       autoResize(input);
       addMessage('customer', msg, getTime());
       hideQuickQuestions();
-      scrollToBottom();
-
-      // 打字动画
+      button.disabled = true;
       const typingId = showTyping();
 
       try {
@@ -368,18 +709,18 @@
         const data = await res.json();
         removeTyping(typingId);
         if (data.error) {
-          addMessage('ai', '抱歉，系统暂时无法处理您的请求，请稍后重试。', getTime());
+          addMessage('ai', '抱歉，系统暂时无法处理您的请求。您可以稍后再试，或直接联系销售电话 13512490668。', getTime());
         } else {
-          addMessage('ai', data.answer, getTime());
+          addMessage('ai', data.answer || '我已收到您的问题，稍后为您继续确认。', getTime());
         }
       } catch (e) {
         removeTyping(typingId);
-        addMessage('ai', '网络异常，请检查网络后重试。', getTime());
+        addMessage('ai', '网络连接不稳定，请检查网络后重试。', getTime());
+      } finally {
+        button.disabled = false;
       }
-      scrollToBottom();
     }
 
-    // ── 快捷问题 ──
     function sendQuick(btn) {
       document.getElementById('msg-input').value = btn.textContent;
       sendMsg();
@@ -394,35 +735,35 @@
     }
 
     function clearMessages() {
-      document.getElementById('messages').innerHTML = '';
+      document.getElementById('messages').innerHTML = '<div class="day-divider"><span>今天</span></div>';
     }
 
-    // ── UI 工具 ──
     function addMessage(role, content, time) {
       const container = document.getElementById('messages');
+      if (!container.innerHTML.trim()) clearMessages();
       const avatar = role === 'customer' ? (customerName || '客').charAt(0) : 'AI';
       const formatted = formatContent(content);
-      container.innerHTML += `
+      container.insertAdjacentHTML('beforeend', `
         <div class="msg ${role}">
-          <div class="msg-avatar">${avatar}</div>
-          <div>
+          <div class="msg-avatar">${escapeHtml(avatar)}</div>
+          <div class="msg-stack">
             <div class="msg-bubble">${formatted}</div>
-            <div class="msg-time">${time}</div>
+            <div class="msg-time">${escapeHtml(time || '')}</div>
           </div>
-        </div>`;
+        </div>`);
       scrollToBottom();
     }
 
     function showTyping() {
       const id = 'typing-' + Date.now();
       const container = document.getElementById('messages');
-      container.innerHTML += `
+      container.insertAdjacentHTML('beforeend', `
         <div class="msg ai" id="${id}">
-          <div class="msg-avatar">客</div>
-          <div class="msg-bubble">
-            <div class="typing-dots"><span></span><span></span><span></span></div>
+          <div class="msg-avatar">AI</div>
+          <div class="msg-stack">
+            <div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>
           </div>
-        </div>`;
+        </div>`);
       scrollToBottom();
       return id;
     }
@@ -434,29 +775,42 @@
 
     function scrollToBottom() {
       const el = document.getElementById('messages');
-      setTimeout(() => el.scrollTop = el.scrollHeight, 50);
+      setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
     }
 
     function formatContent(text) {
-      if (!text) return '';
-      return text
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      return escapeHtml(text || '')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n\n/g, '<br><br>')
         .replace(/\n/g, '<br>');
     }
 
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function getTime() {
       const d = new Date();
-      return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function formatHistoryTime(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value).substring(11, 16);
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
 
     function autoResize(el) {
       el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+      el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
     }
 
-    // Enter 发送
     document.getElementById('msg-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
