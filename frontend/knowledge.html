@@ -65,6 +65,7 @@
         <div style="display:flex;gap:8px;">
           <button class="btn-secondary" onclick="syncPendingItems()">同步待处理</button>
           <button class="btn-secondary" onclick="retryFailedSync()">重试失败同步</button>
+          <button class="btn-secondary" onclick="showDifyDocumentStatus()">Dify文档状态</button>
           <button class="btn-secondary" onclick="loadKnowledge()">刷新</button>
           <button class="btn-secondary" onclick="openModal(null,'store')">+ 门店</button>
           <button class="btn-secondary" onclick="openModal(null,'contact')">+ 联系人</button>
@@ -440,6 +441,36 @@
         '版本记录：',
         latestVersions,
       ].join('\n'));
+    }
+
+    async function showDifyDocumentStatus() {
+      showToast('正在读取 Dify 文档状态...', 'info');
+      const status = await fetchDifyDocumentStatus();
+      if (status.error || status.ok === false) {
+        showToast(status.error || 'Dify 文档状态读取失败', 'error');
+        return;
+      }
+      const stale = status.stale_documents || [];
+      const detail = stale.slice(0, 10).map(doc => `- ${doc.name || doc.id}`).join('\n') || '无';
+      const confirmed = confirm([
+        `Dify 文档总数：${status.dify_document_count || 0}`,
+        `SmartQA 托管文档：${status.managed_document_count || 0}`,
+        `Supabase 已追踪文档：${status.tracked_document_count || 0}`,
+        `可清理 stale 文档：${status.stale_document_count || 0}`,
+        '',
+        '前 10 个 stale 文档：',
+        detail,
+        '',
+        '是否清理这些 stale 单条知识文档？聚合知识文档不会被此操作删除。'
+      ].join('\n'));
+      if (!confirmed || !status.stale_document_count) return;
+      const result = await cleanupStaleDifyDocuments(20);
+      if (result.error || result.ok === false) {
+        showToast(result.error || 'stale 文档清理失败', 'error');
+        return;
+      }
+      showToast(`已清理 ${result.attempted || 0} 个 stale Dify 文档`, 'success');
+      await loadKnowledgeQuality();
     }
 
     async function loadKnowledgeGaps() {

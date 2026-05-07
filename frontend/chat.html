@@ -70,6 +70,34 @@
 
       <!-- 对话区域 -->
       <div id="customer-memory-panel" class="customer-memory-panel" style="display:none;"></div>
+      <div id="operations-panel" style="display:none;padding:10px 24px;background:#fff;border-bottom:1px solid #e2e8f0;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select class="form-input" id="ops-lead-status" style="width:118px;padding:7px 9px;font-size:12px;">
+          <option value="new">新线索</option>
+          <option value="qualified">已确认</option>
+          <option value="quoted">已报价</option>
+          <option value="won">已成交</option>
+          <option value="lost">已流失</option>
+          <option value="nurture">长期跟进</option>
+        </select>
+        <select class="form-input" id="ops-quotation-status" style="width:118px;padding:7px 9px;font-size:12px;">
+          <option value="none">无报价</option>
+          <option value="needed">需报价</option>
+          <option value="sent">已发报价</option>
+          <option value="accepted">报价接受</option>
+          <option value="rejected">报价拒绝</option>
+        </select>
+        <input class="form-input" id="ops-quotation-amount" type="number" min="0" step="0.01" placeholder="报价金额" style="width:112px;padding:7px 9px;font-size:12px;">
+        <input class="form-input" id="ops-follow-up" type="datetime-local" style="width:178px;padding:7px 9px;font-size:12px;">
+        <select class="form-input" id="ops-conversion-stage" style="width:124px;padding:7px 9px;font-size:12px;">
+          <option value="inquiry">咨询中</option>
+          <option value="needs_confirmed">需求确认</option>
+          <option value="quoted">已报价</option>
+          <option value="won">成交</option>
+          <option value="lost">流失</option>
+        </select>
+        <button class="btn-secondary" onclick="saveOperationsFields()" style="padding:7px 12px;font-size:12px;">保存运营</button>
+        <span id="ops-save-status" style="font-size:12px;color:#94a3b8;"></span>
+      </div>
       <div style="flex:1;overflow-y:auto;padding:24px;" id="chat-messages">
         <div style="text-align:center;margin:40px 0;color:#94a3b8;font-size:14px;">
           选择左侧会话开始对话，或发送新消息创建会话
@@ -82,6 +110,10 @@
           <div style="flex:1;position:relative;">
             <textarea id="message-input" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" rows="1" style="width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;font-size:14px;resize:none;outline:none;font-family:inherit;line-height:1.5;transition:border-color 0.15s;" onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
           </div>
+          <input id="image-transcribe-input" type="file" accept="image/*" style="display:none;" onchange="handleNonTextFile(this,'image')">
+          <input id="audio-transcribe-input" type="file" accept="audio/wav,audio/x-wav" style="display:none;" onchange="handleNonTextFile(this,'audio')">
+          <button class="btn-secondary" onclick="document.getElementById('image-transcribe-input').click()" style="padding:12px 14px;border-radius:12px;white-space:nowrap;">OCR</button>
+          <button class="btn-secondary" onclick="document.getElementById('audio-transcribe-input').click()" style="padding:12px 14px;border-radius:12px;white-space:nowrap;">语音</button>
           <button class="btn-secondary" onclick="sendHumanMessage()" style="padding:12px 18px;border-radius:12px;white-space:nowrap;">人工回复</button>
           <button class="btn-brand" onclick="sendMessage()" style="padding:12px 24px;border-radius:12px;white-space:nowrap;">AI发送</button>
         </div>
@@ -256,10 +288,12 @@
                           'background:#dcfce7;color:#16a34a;';
       document.getElementById('qa-status').style.cssText = statusColor + 'font-size:12px;padding:6px 16px;border-radius:20px;font-weight:500;';
       document.getElementById('qa-status').textContent = statusText;
+      renderOperationsPanel(conv);
 
       // 加载对话详情
       try {
         const detail = await fetchConversation(conv.id);
+        renderOperationsPanel({ ...conv, ...detail });
         renderCustomerMemory(detail.customer_memory);
         renderMessages(detail.messages || []);
       } catch (e) {
@@ -267,6 +301,50 @@
         document.getElementById('chat-messages').innerHTML =
           '<div style="text-align:center;margin:40px 0;color:#dc2626;">加载对话失败</div>';
       }
+    }
+
+    function renderOperationsPanel(conv) {
+      const panel = document.getElementById('operations-panel');
+      if (!panel || !conv) return;
+      panel.style.display = 'flex';
+      document.getElementById('ops-lead-status').value = conv.lead_status || 'new';
+      document.getElementById('ops-quotation-status').value = conv.quotation_status || 'none';
+      document.getElementById('ops-quotation-amount').value = conv.quotation_amount || '';
+      document.getElementById('ops-conversion-stage').value = conv.conversion_stage || 'inquiry';
+      document.getElementById('ops-follow-up').value = toLocalDateTimeInput(conv.next_follow_up_at);
+      document.getElementById('ops-save-status').textContent = '';
+    }
+
+    function toLocalDateTimeInput(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    async function saveOperationsFields() {
+      if (!currentConvId) return;
+      const statusEl = document.getElementById('ops-save-status');
+      const amount = document.getElementById('ops-quotation-amount').value;
+      const follow = document.getElementById('ops-follow-up').value;
+      statusEl.textContent = '保存中...';
+      const result = await updateConversationOperations(currentConvId, {
+        lead_status: document.getElementById('ops-lead-status').value,
+        quotation_status: document.getElementById('ops-quotation-status').value,
+        quotation_amount: amount === '' ? null : Number(amount),
+        next_follow_up_at: follow ? new Date(follow).toISOString() : null,
+        conversion_stage: document.getElementById('ops-conversion-stage').value,
+      });
+      if (result.error) {
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = result.error;
+        return;
+      }
+      statusEl.style.color = '#16a34a';
+      statusEl.textContent = '已保存';
+      conversations = conversations.map(c => String(c.id) === String(currentConvId) ? { ...c, ...result } : c);
+      renderSessionList();
     }
 
     function renderCustomerMemory(memory) {
@@ -538,6 +616,34 @@
       await loadConversations();
       const conv = conversations.find(c => c.id === currentConvId);
       if (conv) await selectSessionById(conv.session_id);
+    }
+
+    async function handleNonTextFile(input, kind) {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      setReplyDeliveryStatus(kind === 'image' ? '正在识别图片文字...' : '正在转写语音...', 'info');
+      const result = await transcribeNonText(file, kind);
+      if (result.error) {
+        const hint = result.error === 'azure_vision_not_configured'
+          ? '图片 OCR 未配置 Azure Vision'
+          : result.error === 'azure_speech_not_configured'
+          ? '语音转文字未配置 Azure Speech'
+          : result.error === 'azure_speech_requires_wav_audio'
+          ? '当前语音入口仅支持 WAV'
+          : result.error;
+        setReplyDeliveryStatus(hint, 'error');
+        return;
+      }
+      const text = (result.text || '').trim();
+      if (!text) {
+        setReplyDeliveryStatus('未识别到可用文本', 'error');
+        return;
+      }
+      const messageInput = document.getElementById('message-input');
+      messageInput.value = messageInput.value ? `${messageInput.value}\n${text}` : text;
+      messageInput.focus();
+      setReplyDeliveryStatus(kind === 'image' ? '图片文字已填入输入框' : '语音文本已填入输入框', 'success');
     }
 
     function humanReplyDeliveryText(result) {

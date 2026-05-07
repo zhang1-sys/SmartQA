@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -132,6 +133,30 @@ def update_document(document_id: str, item: dict[str, Any]) -> dict[str, Any]:
         f"{DIFY_API_URL}/datasets/{DIFY_DATASET_ID}/documents/{document_id}/update-by-text",
         headers=_headers(),
         json=payload,
+        timeout=90,
+    )
+    return _json(response)
+
+
+def list_documents(page: int = 1, limit: int = 100) -> dict[str, Any]:
+    if not enabled():
+        raise DifyDatasetError("Dify dataset sync is not configured")
+    response = requests.get(
+        f"{DIFY_API_URL}/datasets/{DIFY_DATASET_ID}/documents",
+        headers=_headers(),
+        params={"page": page, "limit": limit},
+        timeout=90,
+    )
+    return _json(response)
+
+
+def delete_document(document_id: str) -> dict[str, Any]:
+    if not enabled():
+        raise DifyDatasetError("Dify dataset sync is not configured")
+    encoded_id = quote(str(document_id), safe="")
+    response = requests.delete(
+        f"{DIFY_API_URL}/datasets/{DIFY_DATASET_ID}/documents/{encoded_id}",
+        headers=_headers(),
         timeout=90,
     )
     return _json(response)

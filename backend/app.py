@@ -38,6 +38,7 @@ from services.knowledge_quality_service import KnowledgeQualityService
 from services.knowledge_ops_service import KnowledgeOpsService
 from services.knowledge_base import knowledge_base
 from services.message_delivery_service import MessageDeliveryService
+from services.non_text_service import NonTextProcessingError, NonTextService
 from services.repository import get_repository
 from supabase_client import supabase
 from wecom_client import wecom_client
@@ -422,6 +423,41 @@ def api_test_chat():
     return api_chat()
 
 
+@app.route("/api/non-text/transcribe", methods=["POST"])
+def api_non_text_transcribe():
+    file = request.files.get("file")
+    kind = (request.form.get("kind") or "").strip().lower()
+    if not file:
+        return jsonify({"error": "file_required"}), 400
+    content_type = file.mimetype or "application/octet-stream"
+    data = file.read()
+    if not data:
+        return jsonify({"error": "file_empty"}), 400
+    if len(data) > 10 * 1024 * 1024:
+        return jsonify({"error": "file_too_large", "limit_mb": 10}), 400
+    if not kind:
+        kind = "audio" if content_type.startswith("audio/") else "image" if content_type.startswith("image/") else ""
+    if kind not in {"image", "audio"}:
+        return jsonify({"error": "unsupported_non_text_kind", "content_type": content_type}), 400
+    try:
+        service = NonTextService()
+        result = service.transcribe_image(data, content_type) if kind == "image" else service.transcribe_audio(data, content_type)
+    except NonTextProcessingError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": "non_text_transcription_failed", "detail": str(exc)}), 500
+    repo = get_repository()
+    if hasattr(repo, "add_audit_log"):
+        repo.add_audit_log(
+            actor_type="admin",
+            action="non_text.transcribed",
+            target_type="message",
+            target_id=None,
+            metadata={"kind": kind, "content_type": content_type, "text_length": len(result.get("text") or "")},
+        )
+    return jsonify({"ok": True, "kind": kind, "content_type": content_type, "text": result.get("text", "")})
+
+
 @app.route("/api/customer/register", methods=["POST"])
 def api_customer_register():
     data = request.get_json(force=True)
@@ -800,6 +836,34 @@ def api_knowledge_sync_jobs():
     if not hasattr(repo, "list_sync_jobs"):
         return jsonify([])
     return jsonify(repo.list_sync_jobs(request.args.get("item_id")))
+
+
+@app.route("/api/knowledge/dify-documents/status", methods=["GET"])
+def api_knowledge_dify_documents_status():
+    repo = get_repository()
+    try:
+        return jsonify(KnowledgeOpsService(repo).dify_document_status())
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/knowledge/dify-documents/cleanup-stale", methods=["POST"])
+def api_knowledge_dify_documents_cleanup_stale():
+    repo = get_repository()
+    data = request.get_json(silent=True) or {}
+    limit = int(data.get("limit", 20) or 20)
+    try:
+        result = KnowledgeOpsService(repo).cleanup_stale_dify_documents(limit=limit)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    if hasattr(repo, "add_audit_log"):
+        repo.add_audit_log(
+            actor_type="admin",
+            action="knowledge_dify.cleanup_stale",
+            target_type="knowledge_item",
+            metadata={"available": result.get("available"), "attempted": result.get("attempted")},
+        )
+    return jsonify(result)
 
 
 @app.route("/api/knowledge/<item_id>/versions", methods=["GET"])

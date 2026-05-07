@@ -94,6 +94,25 @@
       </div>
     </div>
 
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+      <div class="metric-card" style="padding:16px 18px;">
+        <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">已报价线索</div>
+        <div style="font-size:24px;font-weight:700;color:#4f46e5;" id="metric-quoted-leads">-</div>
+      </div>
+      <div class="metric-card" style="padding:16px 18px;">
+        <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">成交线索</div>
+        <div style="font-size:24px;font-weight:700;color:#16a34a;" id="metric-won-leads">-</div>
+      </div>
+      <div class="metric-card" style="padding:16px 18px;">
+        <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">逾期跟进</div>
+        <div style="font-size:24px;font-weight:700;color:#dc2626;" id="metric-overdue-followups">-</div>
+      </div>
+      <div class="metric-card" style="padding:16px 18px;">
+        <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">报价金额</div>
+        <div style="font-size:24px;font-weight:700;color:#0f766e;" id="metric-quotation-amount">-</div>
+      </div>
+    </div>
+
     <!-- 图表区域 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
       <!-- 五维评分 -->
@@ -212,6 +231,13 @@
       document.getElementById('metric-high-risk').textContent = data.high_risk_qa || 0;
       document.getElementById('metric-failed-runs').textContent = data.failed_ai_runs || 0;
       document.getElementById('metric-gap-resolution').textContent = `${data.knowledge_gap_resolution_rate || 0}%`;
+      const lead = data.lead_summary || {};
+      const leadStatuses = lead.lead_statuses || {};
+      const quotationStatuses = lead.quotation_statuses || {};
+      document.getElementById('metric-quoted-leads').textContent = leadStatuses.quoted || quotationStatuses.sent || 0;
+      document.getElementById('metric-won-leads').textContent = leadStatuses.won || 0;
+      document.getElementById('metric-overdue-followups').textContent = lead.overdue_followups || 0;
+      document.getElementById('metric-quotation-amount').textContent = formatAmount(lead.total_quotation_amount || 0);
 
       // 分数变化标签
       const scoreEl = document.getElementById('metric-score-change');
@@ -225,6 +251,13 @@
         scoreEl.style.cssText = 'background:#fee2e2;color:#dc2626;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;';
         scoreEl.textContent = '需改善';
       }
+    }
+
+    function formatAmount(value) {
+      const n = Number(value || 0);
+      if (!n) return '0';
+      if (n >= 10000) return `${(n / 10000).toFixed(1)}万`;
+      return String(Math.round(n));
     }
 
     function renderDimensions(dims) {

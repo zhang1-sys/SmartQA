@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from config import DIFY_DATASET_ID
-from dify_dataset_client import build_knowledge_text, upsert_document
+from dify_dataset_client import build_knowledge_text, delete_document, list_documents, upsert_document
 
 
 class KnowledgeOpsService:
@@ -78,6 +78,48 @@ class KnowledgeOpsService:
 
     def list_sync_jobs(self, item_id: str | None = None) -> list[dict[str, Any]]:
         return self.repository.list_sync_jobs(item_id)
+
+    def dify_document_status(self) -> dict[str, Any]:
+        items = self.repository.list_knowledge_items()
+        tracked_document_ids = {
+            str(item.get("dify_document_id"))
+            for item in items
+            if item.get("dify_document_id")
+        }
+        documents = _all_dify_documents()
+        managed_documents = [
+            document for document in documents
+            if _document_id(document) in tracked_document_ids or _is_single_item_document(document)
+        ]
+        stale_documents = [
+            document for document in managed_documents
+            if _document_id(document) and _document_id(document) not in tracked_document_ids
+        ]
+        return {
+            "ok": True,
+            "tracked_document_count": len(tracked_document_ids),
+            "dify_document_count": len(documents),
+            "managed_document_count": len(managed_documents),
+            "stale_document_count": len(stale_documents),
+            "stale_documents": [_document_summary(document) for document in stale_documents[:50]],
+        }
+
+    def cleanup_stale_dify_documents(self, limit: int = 20) -> dict[str, Any]:
+        status = self.dify_document_status()
+        results = []
+        for document in status["stale_documents"][:max(1, min(limit, 50))]:
+            document_id = document.get("id")
+            try:
+                response = delete_document(document_id)
+                results.append({"id": document_id, "name": document.get("name"), "deleted": True, "response": response})
+            except Exception as exc:
+                results.append({"id": document_id, "name": document.get("name"), "deleted": False, "error": str(exc)})
+        return {
+            "ok": all(item.get("deleted") for item in results),
+            "available": status["stale_document_count"],
+            "attempted": len(results),
+            "results": results,
+        }
 
     def promote_gap_to_item(self, gap_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         gap = self._get_gap(gap_id)
@@ -221,3 +263,41 @@ def _number_or_none(value: Any) -> float | None:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _all_dify_documents() -> list[dict[str, Any]]:
+    documents: list[dict[str, Any]] = []
+    page = 1
+    while page <= 20:
+        response = list_documents(page=page, limit=100)
+        rows = response.get("data") or response.get("documents") or []
+        if not isinstance(rows, list):
+            break
+        documents.extend([row for row in rows if isinstance(row, dict)])
+        if not response.get("has_more") and len(rows) < 100:
+            break
+        page += 1
+    return documents
+
+
+def _document_id(document: dict[str, Any]) -> str:
+    return str(document.get("id") or "")
+
+
+def _document_name(document: dict[str, Any]) -> str:
+    return str(document.get("name") or document.get("display_name") or "")
+
+
+def _is_single_item_document(document: dict[str, Any]) -> bool:
+    name = _document_name(document)
+    return name.startswith(("产品：", "政策：", "FAQ：", "门店：", "联系人："))
+
+
+def _document_summary(document: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": _document_id(document),
+        "name": _document_name(document),
+        "indexing_status": document.get("indexing_status") or document.get("status"),
+        "created_at": document.get("created_at"),
+        "updated_at": document.get("updated_at"),
+    }

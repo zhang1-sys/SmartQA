@@ -110,6 +110,17 @@ async function updateConversationOperations(id, updates) {
   return res.json();
 }
 
+async function transcribeNonText(file, kind) {
+  const form = new FormData();
+  form.append('file', file);
+  if (kind) form.append('kind', kind);
+  const res = await apiFetch(`${API_BASE}/non-text/transcribe`, {
+    method: 'POST',
+    body: form
+  });
+  return res.json();
+}
+
 async function sendHumanReply(id, content, resolve = true) {
   const res = await apiFetch(`${API_BASE}/conversations/${id}/human-reply`, {
     method: 'POST',
@@ -262,6 +273,20 @@ async function syncPendingKnowledge() {
 async function fetchKnowledgeSyncJobs(itemId) {
   const url = itemId ? `${API_BASE}/knowledge-sync-jobs?item_id=${encodeURIComponent(itemId)}` : `${API_BASE}/knowledge-sync-jobs`;
   const res = await apiFetch(url);
+  return res.json();
+}
+
+async function fetchDifyDocumentStatus() {
+  const res = await apiFetch(`${API_BASE}/knowledge/dify-documents/status`);
+  return res.json();
+}
+
+async function cleanupStaleDifyDocuments(limit = 20) {
+  const res = await apiFetch(`${API_BASE}/knowledge/dify-documents/cleanup-stale`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit })
+  });
   return res.json();
 }
 

@@ -65,3 +65,11 @@ services:
         value: "120"
       - key: MESSAGE_DELIVERY_RETRY_BATCH_SIZE
         value: "5"
+      - key: AZURE_VISION_ENDPOINT
+        sync: false
+      - key: AZURE_VISION_KEY
+        sync: false
+      - key: AZURE_SPEECH_REGION
+        sync: false
+      - key: AZURE_SPEECH_KEY
+        sync: false
