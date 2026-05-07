@@ -49,7 +49,10 @@ def _public_chat_invoice(session: requests.Session, base_url: str) -> dict:
             json={"company": "发布验证客户", "name": "发布验证", "session_id": session_id},
             timeout=45,
         )
-        register_body = register.json()
+        try:
+            register_body = register.json()
+        except ValueError:
+            return {"name": "invoice_public_chat", "ok": False, "status_code": register.status_code, "body_preview": register.text[:300]}
         if register.status_code != 200:
             return {"name": "invoice_public_chat", "ok": False, "status_code": register.status_code, "body_preview": _preview(register_body)}
         started = time.monotonic()
@@ -67,7 +70,10 @@ def _public_chat_invoice(session: requests.Session, base_url: str) -> dict:
             timeout=100,
         )
         elapsed_ms = int((time.monotonic() - started) * 1000)
-        body = chat.json()
+        try:
+            body = chat.json()
+        except ValueError:
+            return {"name": "invoice_public_chat", "ok": False, "status_code": chat.status_code, "latency_ms": elapsed_ms, "body_preview": chat.text[:300]}
         ok = (
             chat.status_code == 200
             and body.get("decision", {}).get("action") == "send"
