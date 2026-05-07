@@ -70,6 +70,29 @@ def main():
     assert "13512490668" in answer
     assert "13682003881" in answer
 
+    trigger_message_id = repo.add_message(
+        conversation_id=conversation["id"],
+        role="customer",
+        direction="inbound",
+        channel="internal",
+        content="能开发票吗？支付方式有哪些？",
+    )
+    result = AIOrchestrationService(repo).handle_customer_message(
+        conversation_id=conversation["id"],
+        trigger_message_id=trigger_message_id,
+        message="能开发票吗？支付方式有哪些？",
+        channel="internal",
+    )
+    answer = result["answer"]
+    print(answer)
+    assert result["decision"]["action"] == "send"
+    assert result["raw_dify_response"]["source"] == "business_fact_guard"
+    assert result["raw_dify_response"]["fact_type"] == "finance"
+    assert "发票" in answer
+    assert "税号" in answer
+    assert "财务" in answer
+    assert "确认" in answer
+
 
 if __name__ == "__main__":
     main()

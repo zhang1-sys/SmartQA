@@ -45,6 +45,20 @@ class BusinessFactService:
         "微信",
     ]
     HOURS_PATTERNS = ["营业时间", "几点开门", "几点关门", "几点上班", "几点下班", "开门吗", "现在营业"]
+    FINANCE_PATTERNS = [
+        "发票",
+        "开票",
+        "专票",
+        "普票",
+        "税号",
+        "付款",
+        "支付",
+        "对公",
+        "转账",
+        "打款",
+        "收款账户",
+        "账户",
+    ]
 
     PRODUCT_LOCATION_FALSE_POSITIVES = ["用在哪", "适合在哪", "施工在哪", "项目在哪", "哪里用", "哪里施工"]
 
@@ -106,6 +120,9 @@ class BusinessFactService:
             return None
         if any(term in normalized for term in self.PRODUCT_LOCATION_FALSE_POSITIVES):
             return None
+        has_finance = any(term in normalized for term in self.FINANCE_PATTERNS)
+        if has_finance:
+            return "finance"
         has_address = any(term in normalized for term in self.ADDRESS_PATTERNS)
         has_contact = any(term in normalized for term in self.CONTACT_PATTERNS)
         has_hours = any(term in normalized for term in self.HOURS_PATTERNS)
@@ -167,6 +184,11 @@ class BusinessFactService:
             return (
                 f"我们营业时间是 {facts['hours']}。"
                 f"门店地址：{facts['address']}；销售电话：{phones}。"
+            )
+        if fact_type == "finance":
+            return (
+                "可以开具发票。开票前请提供公司抬头、税号、地址电话、开户行账号、发票类型和对应订单或合同信息。"
+                "支付方式可以先按对公转账等常规方式沟通，但具体收款账户和开票资料必须由财务同事按最新信息确认后再发送，避免账户或抬头信息出错。"
             )
         return (
             f"我们门店在{facts['address']}。"

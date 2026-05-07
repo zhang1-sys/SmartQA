@@ -115,6 +115,22 @@ class SupabaseRepository:
     def update_conversation_status(self, conversation_id: str, status: str) -> None:
         self.client.update("conversations", {"id": f"eq.{conversation_id}"}, {"status": status})
 
+    def update_conversation_operations(self, conversation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        allowed = {
+            "lead_status",
+            "next_follow_up_at",
+            "quotation_status",
+            "quotation_amount",
+            "conversion_stage",
+        }
+        updates = {key: value for key, value in payload.items() if key in allowed}
+        if not updates:
+            rows = self.client.select("conversations", {"id": f"eq.{conversation_id}", "select": "*", "limit": "1"})
+            return self._normalize_conversation(rows[0]) if rows else {}
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        rows = self.client.update("conversations", {"id": f"eq.{conversation_id}"}, updates)
+        return self._normalize_conversation(rows[0]) if rows else {}
+
     def get_wecom_contact_for_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         rows = self.client.select(
             "conversations",
@@ -589,7 +605,7 @@ class SupabaseRepository:
         )
 
     def dashboard(self) -> dict[str, Any]:
-        conversations = self.client.select("conversations", {"select": "id,status,channel,customer_name,customer_type"})
+        conversations = self.client.select("conversations", {"select": "id,status,channel,customer_name,customer_type,lead_status,next_follow_up_at,quotation_status,quotation_amount,conversion_stage"})
         qa_results = self.client.select("qa_results", {"select": "*"})
         gaps = self.client.select("knowledge_gaps", {"select": "id,status,question,priority,category,frequency,updated_at"})
         ai_runs = self.client.select("ai_runs", {"select": "id,decision,status,error,created_at,output,conversation_id", "order": "created_at.desc", "limit": "200"})
@@ -605,6 +621,7 @@ class SupabaseRepository:
         handled_gaps = len([g for g in gaps if g.get("status") in {"added_to_kb", "ignored"}])
         gap_total = len(gaps)
         wecom_total = sum(1 for row in conversations if row.get("channel") == "wecom")
+        lead_summary = self._lead_summary(conversations)
         ai_send_runs = sum(1 for run in ai_runs if run.get("decision") == "send")
 
         dimensions = {}
@@ -630,6 +647,7 @@ class SupabaseRepository:
             "dimensions": dimensions,
             "trend": trend,
             "low_score_cases": low_score_cases,
+            "lead_summary": lead_summary,
         }
 
     def operations_monitor(self) -> dict[str, Any]:
@@ -715,6 +733,10 @@ class SupabaseRepository:
         kf_failures = int(((kf_poller_state or {}).get("metadata") or {}).get("consecutive_failures") or 0)
         if kf_failures:
             alerts.append({"level": "warning", "title": "WeCom KF poller sync failed", "count": kf_failures, "hint": "Check WeCom rate limits, trusted IP, access token, and wecom_runtime.kf_poller last_error."})
+        delivery_retry_state = next((item for item in wecom_runtime if item.get("state_key") == "message_delivery_retry"), None)
+        delivery_retry_failures = int(((delivery_retry_state or {}).get("metadata") or {}).get("consecutive_failures") or 0)
+        if delivery_retry_failures:
+            alerts.append({"level": "warning", "title": "Message delivery retry scheduler failed", "count": delivery_retry_failures, "hint": "Check WeCom delivery credentials, failed message targets, and wecom_runtime.message_delivery_retry last_error."})
         if needs_human:
             alerts.append({"level": "warning", "title": "存在待人工会话", "count": len(needs_human), "hint": "内部客服需要及时接管，避免客户长时间等待。"})
         if high_open_gaps:
@@ -904,6 +926,42 @@ class SupabaseRepository:
             **row,
             "session_id": row.get("external_conversation_id"),
             "status_code": row.get("status"),
+        }
+
+    def _lead_summary(self, conversations: list[dict[str, Any]]) -> dict[str, Any]:
+        lead_statuses: dict[str, int] = {}
+        quotation_statuses: dict[str, int] = {}
+        conversion_stages: dict[str, int] = {}
+        overdue_followups = 0
+        now = datetime.now(timezone.utc)
+        total_quotation_amount = 0.0
+        for conversation in conversations:
+            lead_status = conversation.get("lead_status") or "new"
+            quotation_status = conversation.get("quotation_status") or "none"
+            conversion_stage = conversation.get("conversion_stage") or "inquiry"
+            lead_statuses[lead_status] = lead_statuses.get(lead_status, 0) + 1
+            quotation_statuses[quotation_status] = quotation_statuses.get(quotation_status, 0) + 1
+            conversion_stages[conversion_stage] = conversion_stages.get(conversion_stage, 0) + 1
+            amount = conversation.get("quotation_amount")
+            if amount not in {None, ""}:
+                try:
+                    total_quotation_amount += float(amount)
+                except (TypeError, ValueError):
+                    pass
+            follow_at = conversation.get("next_follow_up_at")
+            if follow_at:
+                try:
+                    parsed = datetime.fromisoformat(str(follow_at).replace("Z", "+00:00"))
+                    if parsed < now and lead_status not in {"won", "lost"}:
+                        overdue_followups += 1
+                except ValueError:
+                    pass
+        return {
+            "lead_statuses": lead_statuses,
+            "quotation_statuses": quotation_statuses,
+            "conversion_stages": conversion_stages,
+            "overdue_followups": overdue_followups,
+            "total_quotation_amount": round(total_quotation_amount, 2),
         }
 
     def _enrich_messages(

@@ -10,6 +10,7 @@ os.environ.setdefault("INTERNAL_AUTH_REQUIRED", "false")
 os.environ["WECOM_KF_POLL_ENABLED"] = "false"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import auth_service
+from unittest.mock import patch
 from app import init_app
 from services.repository import get_repository
 from wecom_kf_gateway import handle_simulated_text
@@ -17,7 +18,8 @@ from wecom_kf_gateway import handle_simulated_text
 
 def main():
     auth_service.INTERNAL_AUTH_REQUIRED = False
-    app = init_app()
+    with patch("app.start_message_delivery_retry_scheduler"):
+        app = init_app()
     client = app.test_client()
 
     for path in ["/api/system/health", "/api/conversations", "/api/dashboard", "/api/knowledge", "/api/knowledge-gaps"]:

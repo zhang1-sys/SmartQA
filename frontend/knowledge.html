@@ -63,6 +63,7 @@
           </select>
         </div>
         <div style="display:flex;gap:8px;">
+          <button class="btn-secondary" onclick="syncPendingItems()">同步待处理</button>
           <button class="btn-secondary" onclick="retryFailedSync()">重试失败同步</button>
           <button class="btn-secondary" onclick="loadKnowledge()">刷新</button>
           <button class="btn-secondary" onclick="openModal(null,'store')">+ 门店</button>
@@ -399,6 +400,19 @@
       }
       const failed = (result.results || []).filter(item => item.sync_status === 'failed').length;
       showToast(`已重试 ${result.attempted || 0} 条，失败 ${failed} 条`, failed ? 'error' : 'success');
+      await loadKnowledge();
+      await loadKnowledgeQuality();
+    }
+
+    async function syncPendingItems() {
+      showToast('正在同步待处理知识...', 'info');
+      const result = await syncPendingKnowledge();
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+      const failed = (result.results || []).filter(item => item.sync_status === 'failed').length;
+      showToast(`待处理 ${result.available || 0} 条，已尝试 ${result.attempted || 0} 条，失败 ${failed} 条`, failed ? 'error' : 'success');
       await loadKnowledge();
       await loadKnowledgeQuality();
     }

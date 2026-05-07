@@ -1,0 +1,218 @@
+[
+  {
+    "id": "cold_patch_rain",
+    "category": "construction",
+    "message": "冷补料雨天能施工吗？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["冷补", "施工"],
+    "smoke": true
+  },
+  {
+    "id": "cold_patch_winter",
+    "category": "construction",
+    "message": "冬天零下还能用冷补料修坑吗？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["冷补"],
+    "smoke": false
+  },
+  {
+    "id": "pu_foam_window_gap",
+    "category": "product",
+    "message": "聚氨酯发泡胶适合门窗缝隙吗？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["聚氨", "门窗"],
+    "smoke": true
+  },
+  {
+    "id": "rockwool_vs_xps",
+    "category": "product",
+    "message": "外墙保温岩棉板和挤塑板选哪个？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["岩棉"],
+    "smoke": false
+  },
+  {
+    "id": "waterproof_roof_choice",
+    "category": "product",
+    "message": "屋顶防水用卷材还是防水涂料更合适？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["防水"],
+    "smoke": false
+  },
+  {
+    "id": "tile_adhesive_wall",
+    "category": "product",
+    "message": "瓷砖胶能不能贴外墙砖？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["瓷砖"],
+    "smoke": false
+  },
+  {
+    "id": "mortar_usage",
+    "category": "construction",
+    "message": "抗裂砂浆施工要不要挂网格布？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["砂浆"],
+    "smoke": false
+  },
+  {
+    "id": "store_contact",
+    "category": "store_contact",
+    "message": "你们门店地址和电话是什么？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["天津", "电话"],
+    "smoke": true
+  },
+  {
+    "id": "quote_contact",
+    "category": "store_contact",
+    "message": "找谁报价？销售电话是多少？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["电话"],
+    "smoke": false
+  },
+  {
+    "id": "business_hours",
+    "category": "store_contact",
+    "message": "你们几点开门？现在能去自提吗？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["营业"],
+    "smoke": false
+  },
+  {
+    "id": "price_rockwool",
+    "category": "price",
+    "message": "100mm岩棉板多少钱一立方？",
+    "expected_action": ["send", "no_answer", "handoff"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["岩棉"],
+    "smoke": false
+  },
+  {
+    "id": "quote_bulk",
+    "category": "price",
+    "message": "我要500平挤塑板，能给个报价吗？",
+    "expected_action": ["send", "no_answer", "handoff"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["报价"],
+    "smoke": false
+  },
+  {
+    "id": "stock_check",
+    "category": "price",
+    "message": "今天有现货吗？能马上发吗？",
+    "expected_action": ["send", "no_answer", "handoff"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": [],
+    "smoke": false
+  },
+  {
+    "id": "logistics_wuqing_no_lift",
+    "category": "logistics",
+    "message": "天津武清没有电梯，能送上楼吗？",
+    "expected_action": ["send", "handoff", "no_answer"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["电梯"],
+    "smoke": false
+  },
+  {
+    "id": "logistics_fee",
+    "category": "logistics",
+    "message": "运费怎么算？滨海新区能配送吗？",
+    "expected_action": ["send", "handoff", "no_answer"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["运费"],
+    "smoke": false
+  },
+  {
+    "id": "invoice_payment",
+    "category": "invoice_payment",
+    "message": "能开发票吗？支付方式有哪些？",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["发票"],
+    "smoke": true
+  },
+  {
+    "id": "company_account",
+    "category": "invoice_payment",
+    "message": "对公账户发我一下，我现在付款。",
+    "expected_action": ["send"],
+    "expected_risk": ["low", "medium"],
+    "required_terms": ["财务", "确认"],
+    "smoke": false
+  },
+  {
+    "id": "damaged_goods",
+    "category": "aftersales",
+    "message": "货破损了，你们怎么处理？",
+    "expected_action": ["handoff"],
+    "expected_risk": ["high"],
+    "required_terms": ["订单", "照片"],
+    "smoke": true
+  },
+  {
+    "id": "missing_goods",
+    "category": "aftersales",
+    "message": "少发了两包砂浆，怎么办？",
+    "expected_action": ["handoff", "send"],
+    "expected_risk": ["medium", "high"],
+    "required_terms": [],
+    "smoke": false
+  },
+  {
+    "id": "refund_request",
+    "category": "refund",
+    "message": "我不要了，能不能退货退款？",
+    "expected_action": ["handoff"],
+    "expected_risk": ["high"],
+    "required_terms": [],
+    "smoke": false
+  },
+  {
+    "id": "complaint_threat",
+    "category": "complaint",
+    "message": "你们不处理我就投诉退款。",
+    "expected_action": ["handoff"],
+    "expected_risk": ["high"],
+    "required_terms": [],
+    "smoke": false
+  },
+  {
+    "id": "leak_after_construction",
+    "category": "aftersales",
+    "message": "防水做完还是漏水，你们赔不赔？",
+    "expected_action": ["handoff"],
+    "expected_risk": ["high"],
+    "required_terms": [],
+    "smoke": false
+  },
+  {
+    "id": "unknown_fire_policy",
+    "category": "unknown_knowledge",
+    "message": "有没有特殊定制防火政策？",
+    "expected_action": ["handoff", "no_answer"],
+    "expected_risk": ["low", "medium", "high"],
+    "required_terms": [],
+    "smoke": true
+  },
+  {
+    "id": "non_business_noise",
+    "category": "unknown_knowledge",
+    "message": "asdf123？？？",
+    "expected_action": ["handoff", "no_answer", "retry"],
+    "expected_risk": ["medium", "high"],
+    "required_terms": [],
+    "smoke": false
+  }
+]

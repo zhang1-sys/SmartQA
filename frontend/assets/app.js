@@ -101,6 +101,15 @@ async function updateConversationStatus(id, status, reason = '') {
   return res.json();
 }
 
+async function updateConversationOperations(id, updates) {
+  const res = await apiFetch(`${API_BASE}/conversations/${id}/operations`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  return res.json();
+}
+
 async function sendHumanReply(id, content, resolve = true) {
   const res = await apiFetch(`${API_BASE}/conversations/${id}/human-reply`, {
     method: 'POST',
@@ -236,6 +245,14 @@ async function syncKnowledge(id) {
 
 async function syncFailedKnowledge() {
   const res = await apiFetch(`${API_BASE}/knowledge/sync-failed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  return res.json();
+}
+
+async function syncPendingKnowledge() {
+  const res = await apiFetch(`${API_BASE}/knowledge/sync-pending`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });

@@ -41,6 +41,7 @@ from services.message_delivery_service import MessageDeliveryService
 from services.repository import get_repository
 from supabase_client import supabase
 from wecom_client import wecom_client
+from message_delivery_retry_scheduler import start_message_delivery_retry_scheduler
 from wecom_gateway import handle_callback as handle_wecom_callback
 from wecom_gateway import verify_url as verify_wecom_url
 from wecom_kf_gateway import handle_callback as handle_wecom_kf_callback
@@ -219,6 +220,46 @@ def api_conversation_status(conv_id):
             },
         )
     return jsonify({"ok": True})
+
+
+@app.route("/api/conversations/<conv_id>/operations", methods=["PATCH"])
+def api_conversation_operations(conv_id):
+    data = request.get_json(force=True)
+    lead_status = data.get("lead_status")
+    quotation_status = data.get("quotation_status")
+    conversion_stage = data.get("conversion_stage")
+    if lead_status and lead_status not in {"new", "qualified", "quoted", "won", "lost", "nurture"}:
+        return jsonify({"error": "invalid_lead_status"}), 400
+    if quotation_status and quotation_status not in {"none", "needed", "sent", "accepted", "rejected"}:
+        return jsonify({"error": "invalid_quotation_status"}), 400
+    if conversion_stage and conversion_stage not in {"inquiry", "needs_confirmed", "quoted", "won", "lost"}:
+        return jsonify({"error": "invalid_conversion_stage"}), 400
+    if "quotation_amount" in data and data.get("quotation_amount") not in {None, ""}:
+        try:
+            data["quotation_amount"] = float(data["quotation_amount"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid_quotation_amount"}), 400
+    repo = get_repository()
+    if not hasattr(repo, "update_conversation_operations"):
+        return jsonify({"error": "operations_loop_not_supported"}), 501
+    conversation = repo.update_conversation_operations(conv_id, data)
+    if not conversation:
+        return jsonify({"error": "conversation_not_found"}), 404
+    if hasattr(repo, "add_audit_log"):
+        repo.add_audit_log(
+            actor_type="admin",
+            action="conversation.operations_updated",
+            target_type="conversation",
+            target_id=conv_id,
+            metadata={
+                "lead_status": data.get("lead_status"),
+                "next_follow_up_at": data.get("next_follow_up_at"),
+                "quotation_status": data.get("quotation_status"),
+                "quotation_amount": data.get("quotation_amount"),
+                "conversion_stage": data.get("conversion_stage"),
+            },
+        )
+    return jsonify(conversation)
 
 
 @app.route("/api/conversations/<conv_id>/human-reply", methods=["POST"])
@@ -714,6 +755,45 @@ def api_knowledge_sync_failed():
     return jsonify({"attempted": len(results), "results": results})
 
 
+@app.route("/api/knowledge/sync-pending", methods=["POST"])
+def api_knowledge_sync_pending():
+    repo = get_repository()
+    if not hasattr(repo, "list_knowledge_items"):
+        return jsonify({"error": "褰撳墠鏁版嵁灞備笉鏀寔鐭ヨ瘑鍚屾"}), 501
+    data = request.get_json(silent=True) or {}
+    limit = int(data.get("limit", 20) or 20)
+    items = [
+        item for item in KnowledgeOpsService(repo).list_items()
+        if item.get("publish_status") == "published" and item.get("sync_status") in {"pending", "syncing"}
+    ]
+    results = []
+    service = KnowledgeOpsService(repo)
+    for item in items[:max(1, min(limit, 50))]:
+        try:
+            synced = service.sync_item(item["id"])
+            results.append({
+                "id": synced.get("id"),
+                "title": synced.get("title"),
+                "sync_status": synced.get("sync_status"),
+                "last_sync_error": synced.get("last_sync_error"),
+            })
+        except Exception as exc:
+            results.append({
+                "id": item.get("id"),
+                "title": item.get("title"),
+                "sync_status": "failed",
+                "last_sync_error": str(exc),
+            })
+    if hasattr(repo, "add_audit_log"):
+        repo.add_audit_log(
+            actor_type="admin",
+            action="knowledge_sync.sync_pending",
+            target_type="knowledge_item",
+            metadata={"attempted": len(results), "available": len(items)},
+        )
+    return jsonify({"available": len(items), "attempted": len(results), "results": results})
+
+
 @app.route("/api/knowledge-sync-jobs", methods=["GET"])
 def api_knowledge_sync_jobs():
     repo = get_repository()
@@ -1067,6 +1147,7 @@ def init_app():
     if get_repository().backend_name == "sqlite":
         _seed_demo_data()
     start_wecom_kf_poller()
+    start_message_delivery_retry_scheduler()
     return app
 
 

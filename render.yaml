@@ -59,3 +59,9 @@ services:
         sync: false
       - key: OPERATIONS_ALERTS_ENABLED
         value: "false"
+      - key: MESSAGE_DELIVERY_RETRY_ENABLED
+        value: "true"
+      - key: MESSAGE_DELIVERY_RETRY_INTERVAL_SECONDS
+        value: "120"
+      - key: MESSAGE_DELIVERY_RETRY_BATCH_SIZE
+        value: "5"

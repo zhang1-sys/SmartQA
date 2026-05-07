@@ -61,6 +61,18 @@ class SQLiteRepository:
         }.get(status, status)
         update_conversation_status(int(conversation_id), sqlite_status)
 
+    def update_conversation_operations(self, conversation_id: str | int, payload: dict[str, Any]) -> dict[str, Any]:
+        conv = self.get_conversation(conversation_id) or {}
+        raw = conv.get("raw_payload") if isinstance(conv.get("raw_payload"), dict) else {}
+        ops = {
+            "lead_status": payload.get("lead_status", raw.get("lead_status", "new")),
+            "next_follow_up_at": payload.get("next_follow_up_at", raw.get("next_follow_up_at")),
+            "quotation_status": payload.get("quotation_status", raw.get("quotation_status", "none")),
+            "quotation_amount": payload.get("quotation_amount", raw.get("quotation_amount")),
+            "conversion_stage": payload.get("conversion_stage", raw.get("conversion_stage", "inquiry")),
+        }
+        return {**conv, **ops}
+
     def get_wecom_contact_for_conversation(self, conversation_id: str | int) -> dict[str, Any] | None:
         return None
 
@@ -357,6 +369,13 @@ class SQLiteRepository:
             "dimensions": dict(dims) if dims else {},
             "trend": [dict(t) for t in trend],
             "low_score_cases": [],
+            "lead_summary": {
+                "lead_statuses": {},
+                "quotation_statuses": {},
+                "conversion_stages": {},
+                "overdue_followups": 0,
+                "total_quotation_amount": 0,
+            },
         }
 
     def operations_monitor(self) -> dict[str, Any]:
@@ -409,6 +428,9 @@ class SQLiteRepository:
             "channel": channel,
             "external_conversation_id": external_id,
             "status_code": status_map.get(row.get("status"), row.get("status", "active")),
+            "lead_status": row.get("lead_status", "new"),
+            "quotation_status": row.get("quotation_status", "none"),
+            "conversion_stage": row.get("conversion_stage", "inquiry"),
         }
 
     def _normalize_message(self, row: dict[str, Any]) -> dict[str, Any]:
