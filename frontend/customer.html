@@ -543,8 +543,8 @@
       <div class="header-main">
         <div class="header-avatar">鑫</div>
         <div class="header-info">
-          <div class="header-name" id="header-company">-</div>
-          <div class="header-status"><span class="status-dot"></span>AI 建材顾问在线，必要时转人工确认</div>
+          <div class="header-name" id="assistant-name">鑫源建材 AI 顾问</div>
+          <div class="header-status"><span class="status-dot"></span><span id="header-customer">AI 建材顾问在线，必要时转人工确认</span></div>
         </div>
       </div>
       <div class="store-strip">
@@ -579,6 +579,7 @@
     let sessionId = null;
     let accessToken = null;
     let customerName = '';
+    let customerCompany = '';
 
     document.addEventListener('DOMContentLoaded', () => {
       const saved = localStorage.getItem('smartqa_customer');
@@ -588,6 +589,7 @@
           sessionId = info.session_id;
           accessToken = info.access_token;
           customerName = info.name || '';
+          customerCompany = info.company || '客户咨询';
           if (sessionId && accessToken) {
             showChat(info.company || '客户咨询', info.name || '');
             loadHistory();
@@ -624,6 +626,7 @@
         sessionId = data.session_id;
         accessToken = data.access_token;
         customerName = name;
+        customerCompany = company;
         localStorage.setItem('smartqa_customer', JSON.stringify({
           session_id: sessionId,
           access_token: accessToken,
@@ -641,11 +644,13 @@
     }
 
     function showChat(company) {
+      customerCompany = company || customerCompany || '客户咨询';
       document.getElementById('register-screen').classList.add('hidden');
       document.getElementById('chat-screen').classList.add('active');
-      document.getElementById('header-company').textContent = company;
+      document.getElementById('assistant-name').textContent = '鑫源建材 AI 顾问';
+      document.getElementById('header-customer').textContent = `${customerCompany} · AI 在线，必要时转人工确认`;
       document.querySelectorAll('.header-avatar').forEach(el => {
-        el.textContent = (company || '鑫').charAt(0);
+        el.textContent = 'AI';
       });
     }
 
@@ -672,10 +677,10 @@
           });
         } else {
           showQuickQuestions();
-          showWelcome(document.getElementById('header-company').textContent);
+          showWelcome(customerCompany);
         }
       } catch (e) {
-        showWelcome(document.getElementById('header-company').textContent);
+        showWelcome(customerCompany);
       }
     }
 
@@ -703,7 +708,7 @@
             channel: 'web_customer',
             access_token: accessToken,
             customer_name: customerName,
-            customer_type: document.getElementById('header-company').textContent
+            customer_type: customerCompany
           })
         });
         const data = await res.json();
