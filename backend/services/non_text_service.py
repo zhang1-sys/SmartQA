@@ -14,8 +14,16 @@ class NonTextProcessingError(RuntimeError):
 
 
 class NonTextService:
+    @staticmethod
+    def audio_configured() -> bool:
+        return bool(AZURE_SPEECH_REGION and AZURE_SPEECH_KEY)
+
+    @staticmethod
+    def image_configured() -> bool:
+        return bool(AZURE_VISION_ENDPOINT and AZURE_VISION_KEY)
+
     def transcribe_image(self, data: bytes, content_type: str) -> dict[str, Any]:
-        if not (AZURE_VISION_ENDPOINT and AZURE_VISION_KEY):
+        if not self.image_configured():
             raise NonTextProcessingError("azure_vision_not_configured")
         endpoint = AZURE_VISION_ENDPOINT.rstrip("/")
         response = requests.post(
@@ -38,7 +46,7 @@ class NonTextService:
         return {"kind": "image", "text": "\n".join(lines), "raw": body}
 
     def transcribe_audio(self, data: bytes, content_type: str) -> dict[str, Any]:
-        if not (AZURE_SPEECH_REGION and AZURE_SPEECH_KEY):
+        if not self.audio_configured():
             raise NonTextProcessingError("azure_speech_not_configured")
         if "wav" not in (content_type or "").lower():
             raise NonTextProcessingError("azure_speech_requires_wav_audio")

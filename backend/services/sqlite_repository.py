@@ -73,6 +73,9 @@ class SQLiteRepository:
         }
         return {**conv, **ops}
 
+    def list_conversation_operations_history(self, conversation_id: str | int, limit: int = 20) -> list[dict[str, Any]]:
+        return []
+
     def get_wecom_contact_for_conversation(self, conversation_id: str | int) -> dict[str, Any] | None:
         return None
 

@@ -36,6 +36,7 @@ def main():
             "quotation_amount": 12800,
             "conversion_stage": "quoted",
             "next_follow_up_at": "2026-05-08T09:00:00+08:00",
+            "note": "客户需要周五前确认报价",
         },
     )
     body = response.get_json()
@@ -44,6 +45,12 @@ def main():
     assert body["lead_status"] == "quoted"
     assert body["quotation_status"] == "sent"
     assert body["conversion_stage"] == "quoted"
+
+    detail = client.get(f"/api/conversations/{conversation['id']}")
+    detail_body = detail.get_json()
+    print("/api/conversations/:id operations history", detail.status_code, len(detail_body.get("operations_history", [])))
+    assert detail.status_code == 200
+    assert "operations_history" in detail_body
 
     bad = client.patch(f"/api/conversations/{conversation['id']}/operations", json={"lead_status": "bad"})
     print("/api/conversations/:id/operations invalid", bad.status_code)

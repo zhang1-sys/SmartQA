@@ -50,6 +50,13 @@ def main() -> int:
     except Exception as exc:
         checks.append(_check("WeCom token health", False, "warning", str(exc)))
 
+    checks.append(_check(
+        "Azure Speech",
+        _present(config.AZURE_SPEECH_REGION) and _present(config.AZURE_SPEECH_KEY),
+        "warning",
+        "Audio transcription requires AZURE_SPEECH_REGION and AZURE_SPEECH_KEY.",
+    ))
+
     critical_failed = [item for item in checks if item["severity"] == "critical" and not item["ok"]]
     warning_failed = [item for item in checks if item["severity"] == "warning" and not item["ok"]]
     result = {

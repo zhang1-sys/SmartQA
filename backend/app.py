@@ -226,6 +226,7 @@ def api_conversation_status(conv_id):
 @app.route("/api/conversations/<conv_id>/operations", methods=["PATCH"])
 def api_conversation_operations(conv_id):
     data = request.get_json(force=True)
+    note = (data.get("note") or "").strip()
     lead_status = data.get("lead_status")
     quotation_status = data.get("quotation_status")
     conversion_stage = data.get("conversion_stage")
@@ -258,6 +259,7 @@ def api_conversation_operations(conv_id):
                 "quotation_status": data.get("quotation_status"),
                 "quotation_amount": data.get("quotation_amount"),
                 "conversion_stage": data.get("conversion_stage"),
+                "note": note,
             },
         )
     return jsonify(conversation)
@@ -918,6 +920,11 @@ def api_system_health():
             "wecom_kf_enabled": WECOM_KF_ENABLED,
             "wecom_kf_poll_enabled": WECOM_KF_POLL_ENABLED,
             "internal_auth_required": api_auth_required("/api/conversations"),
+        },
+        "non_text": {
+            "audio_enabled": NonTextService.audio_configured(),
+            "audio_provider": "azure_speech" if NonTextService.audio_configured() else None,
+            "audio_formats": ["audio/wav", "audio/x-wav"],
         },
         "knowledge_items": len(knowledge_base.items),
     })

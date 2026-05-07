@@ -153,7 +153,7 @@ def _authenticated_monitor_probe(session: requests.Session, base_url: str, token
 def _preview(body: dict) -> dict:
     if not isinstance(body, dict):
         return {}
-    keys = ["ok", "data_backend", "config", "error", "reason"]
+    keys = ["ok", "data_backend", "config", "non_text", "error", "reason"]
     return {key: body.get(key) for key in keys if key in body}
 
 

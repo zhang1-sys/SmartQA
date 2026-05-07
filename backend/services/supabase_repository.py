@@ -64,6 +64,7 @@ class SupabaseRepository:
             "ai_runs": enriched_runs,
             "knowledge_gaps": gaps,
             "customer_memory": customer_memory,
+            "operations_history": self.list_conversation_operations_history(str(rows[0]["id"]), limit=20),
         }
 
     def find_conversation_by_external_id(self, external_id: str, channel: str = "internal") -> dict[str, Any] | None:
@@ -130,6 +131,22 @@ class SupabaseRepository:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         rows = self.client.update("conversations", {"id": f"eq.{conversation_id}"}, updates)
         return self._normalize_conversation(rows[0]) if rows else {}
+
+    def list_conversation_operations_history(self, conversation_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        try:
+            return self.client.select(
+                "audit_logs",
+                {
+                    "select": "id,actor_type,action,target_type,target_id,metadata,created_at",
+                    "target_type": "eq.conversation",
+                    "target_id": f"eq.{conversation_id}",
+                    "action": "eq.conversation.operations_updated",
+                    "order": "created_at.desc",
+                    "limit": str(max(1, min(limit, 50))),
+                },
+            )
+        except Exception:
+            return []
 
     def get_wecom_contact_for_conversation(self, conversation_id: str) -> dict[str, Any] | None:
         rows = self.client.select(

@@ -18,6 +18,7 @@
     "smoke:knowledge-sync": "python backend/tests/smoke_knowledge_sync_pending.py",
     "smoke:operations-loop": "python backend/tests/smoke_operations_loop.py",
     "smoke:non-text": "python backend/tests/smoke_non_text.py",
+    "observe:wecom": "python tools/observe_wecom_runtime.py",
     "verify:production-release": "python tools/verify_production_release.py",
     "smoke:knowledge": "python tools/check_knowledge_quality.py",
     "smoke:loop": "python backend/tests/smoke_enterprise_loop.py",
