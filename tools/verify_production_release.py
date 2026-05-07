@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,6 +22,11 @@ def main() -> int:
     checks.append(_get(session, base_url, "/api/system/health", public=True))
     checks.append(_public_chat_invoice(session, base_url))
     checks.append(_non_text_probe(session, base_url))
+    checks.append(_protected_endpoint_probe(session, base_url, "/api/conversations"))
+    checks.append(_protected_endpoint_probe(session, base_url, "/api/operations/monitor"))
+    admin_token = os.getenv("SMARTQA_ADMIN_BEARER_TOKEN", "").strip()
+    if admin_token:
+        checks.append(_authenticated_monitor_probe(session, base_url, admin_token))
 
     result = {
         "ok": all(check.get("ok") for check in checks),
@@ -109,6 +115,39 @@ def _non_text_probe(session: requests.Session, base_url: str) -> dict:
         return {"name": "non_text_endpoint", "ok": ok, "status_code": response.status_code, "error": body.get("error")}
     except Exception as exc:
         return {"name": "non_text_endpoint", "ok": False, "error": str(exc)[:500]}
+
+
+def _protected_endpoint_probe(session: requests.Session, base_url: str, path: str) -> dict:
+    try:
+        response = session.get(urljoin(base_url + "/", path.lstrip("/")), timeout=45)
+        body = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+        ok = response.status_code == 401 and body.get("error") == "unauthorized"
+        return {"name": f"protected:{path}", "ok": ok, "status_code": response.status_code, "error": body.get("error")}
+    except Exception as exc:
+        return {"name": f"protected:{path}", "ok": False, "error": str(exc)[:500]}
+
+
+def _authenticated_monitor_probe(session: requests.Session, base_url: str, token: str) -> dict:
+    try:
+        response = session.get(
+            urljoin(base_url + "/", "api/operations/monitor"),
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=45,
+        )
+        body = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+        summary = body.get("summary") if isinstance(body, dict) else None
+        runtime = body.get("wecom_runtime") if isinstance(body, dict) else None
+        ok = response.status_code == 200 and isinstance(summary, dict) and isinstance(runtime, list)
+        runtime_keys = [item.get("state_key") for item in runtime[:10]] if isinstance(runtime, list) else []
+        return {
+            "name": "authenticated_operations_monitor",
+            "ok": ok,
+            "status_code": response.status_code,
+            "summary_keys": sorted(summary.keys())[:10] if isinstance(summary, dict) else [],
+            "runtime_keys": runtime_keys,
+        }
+    except Exception as exc:
+        return {"name": "authenticated_operations_monitor", "ok": False, "error": str(exc)[:500]}
 
 
 def _preview(body: dict) -> dict:

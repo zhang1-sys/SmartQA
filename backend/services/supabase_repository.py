@@ -933,6 +933,8 @@ class SupabaseRepository:
         quotation_statuses: dict[str, int] = {}
         conversion_stages: dict[str, int] = {}
         overdue_followups = 0
+        upcoming_followups: list[dict[str, Any]] = []
+        quotation_pipeline: list[dict[str, Any]] = []
         now = datetime.now(timezone.utc)
         total_quotation_amount = 0.0
         for conversation in conversations:
@@ -954,14 +956,38 @@ class SupabaseRepository:
                     parsed = datetime.fromisoformat(str(follow_at).replace("Z", "+00:00"))
                     if parsed < now and lead_status not in {"won", "lost"}:
                         overdue_followups += 1
+                    if lead_status not in {"won", "lost"}:
+                        upcoming_followups.append({
+                            "id": conversation.get("id"),
+                            "customer_name": conversation.get("customer_name"),
+                            "customer_type": conversation.get("customer_type"),
+                            "channel": conversation.get("channel"),
+                            "lead_status": lead_status,
+                            "next_follow_up_at": follow_at,
+                            "overdue": parsed < now,
+                        })
                 except ValueError:
                     pass
+            if quotation_status in {"needed", "sent", "accepted"} or lead_status in {"quoted", "won"}:
+                quotation_pipeline.append({
+                    "id": conversation.get("id"),
+                    "customer_name": conversation.get("customer_name"),
+                    "customer_type": conversation.get("customer_type"),
+                    "channel": conversation.get("channel"),
+                    "lead_status": lead_status,
+                    "quotation_status": quotation_status,
+                    "quotation_amount": amount,
+                    "conversion_stage": conversion_stage,
+                })
+        upcoming_followups.sort(key=lambda item: (not item.get("overdue"), str(item.get("next_follow_up_at") or "")))
         return {
             "lead_statuses": lead_statuses,
             "quotation_statuses": quotation_statuses,
             "conversion_stages": conversion_stages,
             "overdue_followups": overdue_followups,
             "total_quotation_amount": round(total_quotation_amount, 2),
+            "upcoming_followups": upcoming_followups[:8],
+            "quotation_pipeline": quotation_pipeline[:8],
         }
 
     def _enrich_messages(

@@ -113,6 +113,27 @@
       </div>
     </div>
 
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:16px;margin-bottom:24px;">
+      <div class="card-shadow" style="background:#fff;padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="color:#64748b;font-size:14px;font-weight:600;">线索漏斗</div>
+          <span style="font-size:12px;color:#94a3b8;">按当前会话运营字段统计</span>
+        </div>
+        <div id="lead-funnel-container" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">加载中...</div>
+        </div>
+      </div>
+      <div class="card-shadow" style="background:#fff;padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="color:#64748b;font-size:14px;font-weight:600;">跟进与报价队列</div>
+          <span style="font-size:12px;color:#4f46e5;cursor:pointer;" onclick="location.href='chat.html'">去处理 →</span>
+        </div>
+        <div id="ops-queue-container" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">加载中...</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 图表区域 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
       <!-- 五维评分 -->
@@ -207,6 +228,7 @@
         const data = await fetchDashboard();
         renderMetrics(data);
         renderDimensions(data.dimensions);
+        renderLeadOperations(data.lead_summary || {});
         renderTrend(data);
         renderLowScoreCases(data.low_score_cases || []);
         renderGaps(data.top_knowledge_gaps || []);
@@ -258,6 +280,77 @@
       if (!n) return '0';
       if (n >= 10000) return `${(n / 10000).toFixed(1)}万`;
       return String(Math.round(n));
+    }
+
+    function renderLeadOperations(lead) {
+      const funnelBox = document.getElementById('lead-funnel-container');
+      const queueBox = document.getElementById('ops-queue-container');
+      const statusLabels = {
+        new: '新线索',
+        qualified: '已确认',
+        quoted: '已报价',
+        won: '成交',
+        lost: '流失',
+        nurture: '长期跟进',
+      };
+      const statuses = lead.lead_statuses || {};
+      const maxCount = Math.max(1, ...Object.values(statuses).map(v => Number(v || 0)));
+      const ordered = ['new', 'qualified', 'quoted', 'won', 'nurture', 'lost'];
+      funnelBox.innerHTML = ordered.map(key => {
+        const count = Number(statuses[key] || 0);
+        const width = Math.max(4, Math.round(count / maxCount * 100));
+        return `
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:5px;">
+              <span>${statusLabels[key]}</span>
+              <span style="font-weight:700;color:#334155;">${count}</span>
+            </div>
+            <div style="height:10px;border-radius:999px;background:#f1f5f9;overflow:hidden;">
+              <div style="height:100%;width:${width}%;background:${key === 'won' ? '#16a34a' : key === 'lost' ? '#94a3b8' : '#4f46e5'};border-radius:999px;"></div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const followups = lead.upcoming_followups || [];
+      const pipeline = lead.quotation_pipeline || [];
+      const items = [
+        ...followups.slice(0, 4).map(item => ({ ...item, kind: item.overdue ? '逾期跟进' : '待跟进' })),
+        ...pipeline.slice(0, 4).map(item => ({ ...item, kind: item.quotation_status === 'needed' ? '需报价' : '报价推进' })),
+      ].slice(0, 6);
+      if (!items.length) {
+        queueBox.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">暂无待处理跟进或报价</div>';
+        return;
+      }
+      queueBox.innerHTML = items.map(item => {
+        const urgent = item.kind === '逾期跟进' || item.kind === '需报价';
+        const badgeStyle = urgent ? 'background:#fee2e2;color:#dc2626;' : 'background:#f1f5f9;color:#475569;';
+        const sub = item.next_follow_up_at
+          ? `跟进 ${formatDateTime(item.next_follow_up_at)}`
+          : `${quotationLabel(item.quotation_status)} · ${leadLabel(item.lead_status)}`;
+        return `
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:11px 12px;background:#f8fafc;">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+              <span style="font-size:13px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(item.customer_name || '未知客户')}</span>
+              <span style="${badgeStyle}font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700;white-space:nowrap;">${item.kind}</span>
+            </div>
+            <div style="font-size:12px;color:#64748b;margin-top:5px;">${escapeHtml(sub)}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function leadLabel(value) {
+      return ({ new: '新线索', qualified: '已确认', quoted: '已报价', won: '成交', lost: '流失', nurture: '长期跟进' })[value] || value || '未标记';
+    }
+
+    function quotationLabel(value) {
+      return ({ none: '无报价', needed: '需报价', sent: '已发报价', accepted: '报价接受', rejected: '报价拒绝' })[value] || value || '未标记';
+    }
+
+    function formatDateTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     }
 
     function renderDimensions(dims) {

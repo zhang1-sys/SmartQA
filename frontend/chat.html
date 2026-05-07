@@ -38,6 +38,8 @@
         <div class="queue-tabs" id="queue-tabs" style="margin-top:12px;">
           <button class="queue-tab active" data-filter="wecom" onclick="setQueueFilter('wecom')">企业微信</button>
           <button class="queue-tab" data-filter="needs_human" onclick="setQueueFilter('needs_human')">待人工</button>
+          <button class="queue-tab" data-filter="overdue_followup" onclick="setQueueFilter('overdue_followup')">逾期跟进</button>
+          <button class="queue-tab" data-filter="quotation_needed" onclick="setQueueFilter('quotation_needed')">需报价</button>
           <button class="queue-tab" data-filter="web_customer" onclick="setQueueFilter('web_customer')">网页客户</button>
           <button class="queue-tab" data-filter="internal" onclick="setQueueFilter('internal')">内部</button>
           <button class="queue-tab" data-filter="all" onclick="setQueueFilter('all')">全部</button>
@@ -204,6 +206,8 @@
         const channelMatched =
           currentQueueFilter === 'all' ||
           (currentQueueFilter === 'needs_human' && statusCode === 'needs_human') ||
+          (currentQueueFilter === 'overdue_followup' && isOverdueFollowUp(c)) ||
+          (currentQueueFilter === 'quotation_needed' && c.quotation_status === 'needed') ||
           (currentQueueFilter === 'wecom' && (channel === 'wecom' || channel === 'wecom_kf')) ||
           (currentQueueFilter === 'web_customer' && channel === 'web_customer') ||
           (currentQueueFilter === 'internal' && channel === 'internal');
@@ -227,6 +231,7 @@
         const statusClass = statusCode === 'active' ? 'status-active' :
                             statusCode === 'needs_human' ? 'status-escalated' : 'status-resolved';
         const isActive = c.session_id === currentSessionId;
+        const opsBadges = renderConversationOpsBadges(c);
         return `
           <div class="session-item ${isActive ? 'active' : ''}" onclick="selectSessionById('${c.session_id}', event)">
             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -237,6 +242,7 @@
               <span style="color:#94a3b8;font-size:12px;">${c.customer_type}</span>
               <span class="channel-mini-tag ${channelTagClass(c.channel)}">${channelLabel(c.channel)}</span>
             </div>
+            ${opsBadges ? `<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">${opsBadges}</div>` : ''}
             <div style="color:#cbd5e1;font-size:11px;margin-top:2px;">${formatTime(c.created_at)}</div>
           </div>`;
       }).join('');
@@ -245,6 +251,40 @@
       if (list.length > 0 && !currentSessionId) {
         selectSessionById(list[0].session_id);
       }
+    }
+
+    function isOverdueFollowUp(conv) {
+      if (!conv || !conv.next_follow_up_at) return false;
+      if (['won', 'lost'].includes(conv.lead_status)) return false;
+      const due = new Date(conv.next_follow_up_at);
+      return !Number.isNaN(due.getTime()) && due < new Date();
+    }
+
+    function renderConversationOpsBadges(conv) {
+      const badges = [];
+      if (isOverdueFollowUp(conv)) {
+        badges.push('<span class="ops-chip danger" style="font-size:11px;">逾期跟进</span>');
+      } else if (conv.next_follow_up_at && !['won', 'lost'].includes(conv.lead_status)) {
+        badges.push(`<span class="ops-chip neutral" style="font-size:11px;">跟进 ${formatFollowUpDate(conv.next_follow_up_at)}</span>`);
+      }
+      if (conv.quotation_status === 'needed') {
+        badges.push('<span class="ops-chip warning" style="font-size:11px;">需报价</span>');
+      } else if (conv.quotation_status === 'sent') {
+        badges.push('<span class="ops-chip neutral" style="font-size:11px;">已报价</span>');
+      }
+      if (conv.lead_status === 'won') {
+        badges.push('<span class="ops-chip success" style="font-size:11px;">成交</span>');
+      } else if (conv.lead_status === 'lost') {
+        badges.push('<span class="ops-chip neutral" style="font-size:11px;">流失</span>');
+      }
+      return badges.slice(0, 3).join('');
+    }
+
+    function formatFollowUpDate(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     }
 
     function formatTime(ts) {
